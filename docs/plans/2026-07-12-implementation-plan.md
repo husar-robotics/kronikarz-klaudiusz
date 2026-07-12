@@ -179,7 +179,7 @@ Author the skill that will be PR'd to `shrek-dog`, staged in this repo under `sk
 - Fill real ids into `config.toml` (guild, staging channel, later `#daily-tldr`) — with Marcin.
 - Create the staging channel; later flip `newsletter_channel_id` at G3.
 - Mint `SHREK_DOG_TOKEN` (fine-grained PAT: `shrek-dog`, contents + pull-requests write) — Marcin.
-- Create the routine and its cloud environment (secrets, setup script `uv pip install -e .` + `gh` availability check, network allowlist: `discord.com`, `export.arxiv.org`, `doi.org`, `github.com`, `api.github.com`) — with Marcin, at wave 5.
+- Create the routine and its cloud environment (secrets, setup script `pip install -e .` + `gh` availability check, network access **Full** — link validation touches arbitrary domains, so an allowlist would break it; see design §2) — with Marcin, at wave 5.
 - M1 live read test, the G2/G3/G4 rehearsals, and all live posting.
 
 ## Supervision workflow
