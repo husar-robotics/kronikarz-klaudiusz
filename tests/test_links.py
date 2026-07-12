@@ -320,6 +320,19 @@ def test_validate_200_is_true():
 
 
 @respx.mock
+def test_validate_own_client_sends_descriptive_user_agent():
+    # Wikipedia and similar hosts 403 the default python-httpx UA (verified
+    # live 2026-07-12), which would read as a dead link.
+    route = respx.head("https://example.com/ua").mock(return_value=httpx.Response(200))
+
+    validate(["https://example.com/ua"])
+
+    ua = route.calls[0].request.headers["User-Agent"]
+    assert "kronikarz-klaudiusz" in ua
+    assert "python-httpx" not in ua
+
+
+@respx.mock
 def test_validate_404_is_false():
     respx.head("https://example.com/missing").mock(return_value=httpx.Response(404))
 

@@ -13,6 +13,16 @@ DOI_HEADERS = {"Accept": "application/vnd.citationstyles.csl+json"}
 ATOM_NS = "{http://www.w3.org/2005/Atom}"
 REQUEST_TIMEOUT = 10.0
 
+# Some hosts (Wikipedia among them, verified live 2026-07-12) return 403 to
+# the default python-httpx User-Agent, which would make the validator drop
+# live links. A descriptive UA with a contact URL follows those hosts' bot
+# policies.
+USER_AGENT = "kronikarz-klaudiusz/0.1.0 (+https://github.com/husar-robotics/kronikarz-klaudiusz)"
+
+
+def _own_client() -> httpx.Client:
+    return httpx.Client(headers={"User-Agent": USER_AGENT})
+
 _URL_RE = re.compile(r"https?://\S+")
 _ARXIV_ID_RE = re.compile(
     r"arxiv\.org/(?:abs|pdf)/(?P<id>\d{4}\.\d{4,5})(?:v\d+)?(?:\.pdf)?", re.IGNORECASE
@@ -186,7 +196,7 @@ def resolve(links: list[SharedLink], client: httpx.Client | None = None) -> list
     crash the pipeline. Pass `client` to inject a mock or a shared client.
     """
     owns_client = client is None
-    http = client or httpx.Client()
+    http = client or _own_client()
     try:
         return [_resolve_one(link, http) for link in links]
     finally:
@@ -209,7 +219,7 @@ def _validate_one(url: str, http: httpx.Client) -> bool:
 def validate(urls: list[str], client: httpx.Client | None = None) -> dict[str, bool]:
     """HEAD each URL (GET fallback on 405); any failure or non-2xx/3xx is False. Never raises."""
     owns_client = client is None
-    http = client or httpx.Client()
+    http = client or _own_client()
     try:
         return {url: _validate_one(url, http) for url in urls}
     finally:
