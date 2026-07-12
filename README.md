@@ -5,7 +5,11 @@ the official bot REST API and writes back — the backend for two consumers: an
 automatic **newsletter** and a **research log** built from repo + Discord
 discussions. Cron-driven, zero always-on infrastructure.
 
-Full design: [`docs/plans/2026-07-10-discord-llm-bridge.md`](docs/plans/2026-07-10-discord-llm-bridge.md).
+Full design: [`docs/plans/2026-07-10-discord-llm-bridge.md`](docs/plans/2026-07-10-discord-llm-bridge.md)
+(ingestion architecture) and
+[`docs/plans/2026-07-12-consumers-design.md`](docs/plans/2026-07-12-consumers-design.md)
+(the three consumers: `/ask-klaudiusz` skill, daily `#daily-tldr` newsletter,
+research log).
 
 ## Phase 0 — smoke test (gate G0)
 
