@@ -1,0 +1,12 @@
+[discord]
+guild_id = "..."
+newsletter_channel_id = "..."   # starts as a staging channel, flipped to #daily-tldr at gate G3
+ignore_channels = ["bot-news"]  # channels excluded from ingestion
+
+[shrek_dog]
+repo = "husar-robotics/shrek-dog"
+log_dir = "docs/research-log"
+
+[schedule]
+timezone = "Europe/Warsaw"
+quiet_day_message_threshold = 10
