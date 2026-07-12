@@ -172,7 +172,7 @@ def test_extract_urls_other_kind_for_unrelated_url():
 
 @respx.mock
 def test_resolve_arxiv_fetches_title_and_authors():
-    respx.get("http://export.arxiv.org/api/query", params={"id_list": "2406.01234"}).mock(
+    respx.get("https://export.arxiv.org/api/query", params={"id_list": "2406.01234"}).mock(
         return_value=httpx.Response(200, text=ARXIV_ATOM_FIXTURE)
     )
     link = SharedLink(
@@ -193,7 +193,7 @@ def test_resolve_arxiv_fetches_title_and_authors():
 
 @respx.mock
 def test_resolve_arxiv_degrades_on_server_error():
-    respx.get("http://export.arxiv.org/api/query").mock(return_value=httpx.Response(500))
+    respx.get("https://export.arxiv.org/api/query").mock(return_value=httpx.Response(500))
     link = SharedLink(
         url="https://arxiv.org/abs/2406.01234",
         title=None,
@@ -209,7 +209,7 @@ def test_resolve_arxiv_degrades_on_server_error():
 
 @respx.mock
 def test_resolve_arxiv_degrades_on_garbage_xml():
-    respx.get("http://export.arxiv.org/api/query").mock(return_value=httpx.Response(200, text="not xml <<<"))
+    respx.get("https://export.arxiv.org/api/query").mock(return_value=httpx.Response(200, text="not xml <<<"))
     link = SharedLink(
         url="https://arxiv.org/abs/2406.01234",
         title=None,
@@ -225,7 +225,7 @@ def test_resolve_arxiv_degrades_on_garbage_xml():
 
 @respx.mock
 def test_resolve_arxiv_degrades_when_no_entry_in_feed():
-    respx.get("http://export.arxiv.org/api/query").mock(return_value=httpx.Response(200, text=ARXIV_ATOM_NO_ENTRY_FIXTURE))
+    respx.get("https://export.arxiv.org/api/query").mock(return_value=httpx.Response(200, text=ARXIV_ATOM_NO_ENTRY_FIXTURE))
     link = SharedLink(
         url="https://arxiv.org/abs/9999.99999",
         title=None,

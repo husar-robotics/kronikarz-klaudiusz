@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import sys
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from .config import Config
-from .discord_api import DiscordClient
+from .discord_api import DiscordAPIError, DiscordClient
 
 DISCORD_EPOCH_MS = 1420070400000
 
@@ -72,11 +73,29 @@ def normalize_message(
     }
 
 
+def _skip_no_access(exc: DiscordAPIError, label: str) -> None:
+    """Re-raise anything but a 403.
+
+    The guild channel list includes channels whose permission overwrites deny
+    the bot access (verified live 2026-07-12: /guilds/{id}/channels returns
+    them, then their /messages returns 403 code 50001), so a per-container
+    403 means "not ours to read", never a pipeline failure.
+    """
+    if exc.status_code != 403:
+        raise exc
+    print(f"[warn] skipping {label}: bot has no access (403)", file=sys.stderr)
+
+
 def _plain_channel_messages(
     client: DiscordClient, config: Config, channel: dict, after: str, before: str
 ) -> list[dict]:
     """Messages posted directly in `channel` (nothing for forum channels, which hold only threads)."""
     if channel.get("type") not in _MESSAGE_CHANNEL_TYPES:
+        return []
+    try:
+        msgs = list(client.messages(channel["id"], after=after, before=before))
+    except DiscordAPIError as exc:
+        _skip_no_access(exc, f"#{channel['name']}")
         return []
     return [
         normalize_message(
@@ -86,7 +105,7 @@ def _plain_channel_messages(
             thread_name=None,
             guild_id=config.discord.guild_id,
         )
-        for msg in client.messages(channel["id"], after=after, before=before)
+        for msg in msgs
     ]
 
 
@@ -113,11 +132,15 @@ def _thread_messages(
         for t in active_threads
         if t.get("parent_id") == channel["id"] and t.get("type") == DiscordClient.PUBLIC_THREAD
     ]
-    archived_here = [
-        t
-        for t in client.archived_public_threads(channel["id"])
-        if not _is_stale_archived(t, after_int)
-    ]
+    try:
+        archived_here = [
+            t
+            for t in client.archived_public_threads(channel["id"])
+            if not _is_stale_archived(t, after_int)
+        ]
+    except DiscordAPIError as exc:
+        _skip_no_access(exc, f"archived threads of #{channel['name']}")
+        archived_here = []
 
     records: list[dict] = []
     seen_ids: set[str] = set()
@@ -128,7 +151,12 @@ def _thread_messages(
             # in-window message, since every message in it postdates it
             continue
         seen_ids.add(thread_id)
-        for msg in client.messages(thread_id, after=after, before=before):
+        try:
+            thread_msgs = list(client.messages(thread_id, after=after, before=before))
+        except DiscordAPIError as exc:
+            _skip_no_access(exc, f"thread {thread.get('name', thread_id)!r}")
+            continue
+        for msg in thread_msgs:
             records.append(
                 normalize_message(
                     msg,

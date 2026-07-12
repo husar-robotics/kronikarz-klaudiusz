@@ -8,7 +8,7 @@ from dataclasses import dataclass, replace
 
 import httpx
 
-ARXIV_API = "http://export.arxiv.org/api/query"
+ARXIV_API = "https://export.arxiv.org/api/query"
 DOI_HEADERS = {"Accept": "application/vnd.citationstyles.csl+json"}
 ATOM_NS = "{http://www.w3.org/2005/Atom}"
 REQUEST_TIMEOUT = 10.0
@@ -118,7 +118,12 @@ def _resolve_arxiv(link: SharedLink, http: httpx.Client) -> SharedLink:
     if arxiv_id is None:
         return link
     try:
-        resp = http.get(ARXIV_API, params={"id_list": arxiv_id}, timeout=REQUEST_TIMEOUT)
+        resp = http.get(
+            ARXIV_API,
+            params={"id_list": arxiv_id},
+            timeout=REQUEST_TIMEOUT,
+            follow_redirects=True,
+        )
         resp.raise_for_status()
         root = ET.fromstring(resp.text)
     except (httpx.HTTPError, ET.ParseError):

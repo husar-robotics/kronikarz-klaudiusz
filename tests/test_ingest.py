@@ -281,6 +281,25 @@ def test_pull_window_enumerates_channels_and_threads_correctly():
 
 
 @respx.mock
+def test_pull_window_skips_channels_the_bot_cannot_read(capsys):
+    # The guild channel list includes channels whose overwrites deny the bot
+    # access (verified live 2026-07-12); their /messages returns 403 code
+    # 50001 and must be skipped, not kill the pull.
+    routes = _register_fixture_guild()
+    config = make_config()
+    routes["general_messages"].mock(
+        return_value=httpx.Response(403, json={"message": "Missing Access", "code": 50001})
+    )
+
+    with _client() as client:
+        records = pull_window(client, config, WINDOW_START, WINDOW_END)
+
+    ids = {r["id"] for r in records}
+    assert ids == {str(AFTER_INT + 550), str(AFTER_INT + 640)}
+    assert "skipping #general" in capsys.readouterr().err
+
+
+@respx.mock
 def test_pull_window_sends_window_bounds_to_messages_endpoint():
     _register_fixture_guild()
     config = make_config()

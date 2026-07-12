@@ -127,7 +127,7 @@ def test_quiet_day_writes_bundle_and_exits_2(patch_env, tmp_path, capsys):
 
 @respx.mock
 def test_busy_day_exits_0_and_resolves_arxiv_link(patch_env, tmp_path, capsys):
-    respx.get("http://export.arxiv.org/api/query", params={"id_list": "2406.01234"}).mock(
+    respx.get("https://export.arxiv.org/api/query", params={"id_list": "2406.01234"}).mock(
         return_value=httpx.Response(200, text=ARXIV_ATOM_FIXTURE)
     )
     patch_env(BUSY_MESSAGES, threshold=10)

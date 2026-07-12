@@ -1,5 +1,5 @@
 [discord]
-guild_id = "..."
+guild_id = "1521375012232101948"
 newsletter_channel_id = "..."   # starts as a staging channel, flipped to #daily-tldr at gate G3
 ignore_channels = ["bot-news"]  # channels excluded from ingestion
 
