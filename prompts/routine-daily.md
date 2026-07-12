@@ -1,7 +1,8 @@
 # Daily routine
 
 This is the fixed instruction for the daily Claude Code routine. It covers Discord and repo
-activity from the previous day and produces the `#daily-tldr` newsletter.
+activity from the previous day and produces the `#daily-tldr` newsletter and the research-log
+entry.
 
 The session starts in a fresh clone of this repository, on the current branch. `DISCORD_BOT_TOKEN`
 is already set in the environment. The `klaudiusz` package is already installed. Do not install,
@@ -25,8 +26,8 @@ uv run klaudiusz context --date <date> --out context-<date>
 Check the exit code before doing anything else.
 
 - **Exit code 2** means a quiet day. A quiet day has too little Discord activity and no repo
-activity. Stop here. Do not write a newsletter. Do not post anything. End the run and report that
-the day was quiet.
+activity. Stop here. Do not write a newsletter. Do not write a log entry. Do not post anything.
+End the run and report that the day was quiet.
 - **Exit code 1** means the command failed. Stop here. Report the printed error as the run's
 outcome. Do not attempt to work around it.
 - **Exit code 0** means the bundle is ready. Continue to step 3.
@@ -85,7 +86,19 @@ git push
 
 Commit only `newsletters/<date>.md`. Do not commit the draft file or anything else.
 
-<!-- research-log step: added at Phase 4 -->
+## 7. Research log
+
+After the newsletter is committed, continue with the research log for the same date.
+
+1. Fetch the current month's log file and the previous 14 days of entries
+   from `docs/research-log/` in `shrek-dog`.
+2. Follow `prompts/research-log.md` to decide what qualifies and write the
+   day's entry.
+3. Run `uv run klaudiusz publish-log` as described in `prompts/research-log.md`.
+
+A quiet log day, where nothing in the day clears the bar for an entry, is a
+normal outcome. Producing no bundle and opening no PR is correct on that
+day. It is not an error to retry or report.
 
 ## Guardrails
 
