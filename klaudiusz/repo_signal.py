@@ -44,9 +44,14 @@ def commits(repo: str, start: datetime, end: datetime) -> list[dict]:
     since/until boundary inclusivity precisely enough to rely on it alone for
     a half-open window.
     """
+    # --method GET is load-bearing: `gh api` switches to POST as soon as any
+    # -f field is present, and GETs with -f fields only stay GETs (with the
+    # fields moved to the query string) when the method is forced.
     stdout = _run_gh(
         [
             "api",
+            "--method",
+            "GET",
             f"repos/{repo}/commits",
             "--paginate",
             "-f",

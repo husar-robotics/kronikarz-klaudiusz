@@ -171,7 +171,7 @@ def test_commits_passes_since_until_query_params(monkeypatch):
     rs.commits(REPO, WINDOW_START, WINDOW_END)
 
     cmd = seen["cmd"]
-    assert cmd[:4] == ["gh", "api", f"repos/{REPO}/commits", "--paginate"]
+    assert cmd[:6] == ["gh", "api", "--method", "GET", f"repos/{REPO}/commits", "--paginate"]
     assert "since=2026-07-11T00:00:00Z" in cmd
     assert "until=2026-07-12T00:00:00Z" in cmd
 

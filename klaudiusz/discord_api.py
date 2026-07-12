@@ -18,9 +18,8 @@ _PAGE_LIMIT = 100
 class DiscordAPIError(RuntimeError):
     """A non-2xx Discord response not otherwise handled.
 
-    Carries the method, URL, status, and response body, same spirit as
-    smoke.py's `check()`: the API's own error body is far more useful than a
-    bare status code.
+    Carries the method, URL, status, and response body: the API's own error
+    body is far more useful than a bare status code.
     """
 
     def __init__(self, resp: httpx.Response) -> None:
@@ -140,7 +139,8 @@ class DiscordClient:
         posts exist only as threads, so this and `active_threads` are the
         only way to discover forum discussions. Channels with more archived
         threads than one page holds would need `before`-cursor pagination,
-        which this task does not implement (see report).
+        which is not implemented; a daily window never needs more than the
+        first page.
         """
         return (
             self._request("GET", f"/channels/{channel_id}/threads/archived/public")
