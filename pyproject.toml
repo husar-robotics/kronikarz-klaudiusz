@@ -19,3 +19,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["klaudiusz"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"config.toml" = "klaudiusz/config.toml"

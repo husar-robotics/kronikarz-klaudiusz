@@ -8,6 +8,8 @@ from collections.abc import Callable
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 
+from . import cli_read
+
 PACKAGE_NAME = "klaudiusz"
 FALLBACK_VERSION = "0.0.0+unknown"
 
@@ -34,7 +36,7 @@ def _register_version(subparsers: "argparse._SubParsersAction[argparse.ArgumentP
     parser.set_defaults(func=_cmd_version)
 
 
-SUBCOMMANDS: list[SubcommandRegistrar] = [_register_version]
+SUBCOMMANDS: list[SubcommandRegistrar] = [_register_version, cli_read.register]
 
 
 def build_parser() -> argparse.ArgumentParser:

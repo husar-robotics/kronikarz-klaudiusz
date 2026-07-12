@@ -8,7 +8,13 @@ import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
-DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config.toml"
+_REPO_ROOT_CONFIG = Path(__file__).resolve().parent.parent / "config.toml"
+_PACKAGED_CONFIG = Path(__file__).resolve().parent / "config.toml"
+
+# A dev checkout reads the repo-root config.toml; an installed wheel (uvx from
+# another repo) has no repo root, so the wheel bundles a copy inside the
+# package and that copy is the fallback.
+DEFAULT_CONFIG_PATH = _REPO_ROOT_CONFIG if _REPO_ROOT_CONFIG.is_file() else _PACKAGED_CONFIG
 
 
 @dataclass(frozen=True)
