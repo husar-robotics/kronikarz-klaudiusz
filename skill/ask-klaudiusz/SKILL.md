@@ -9,15 +9,15 @@ description: Use when the user asks what was discussed, decided, or shared on th
 
 This skill gives an agent read-only access to the project's Discord server. It works by running the `klaudiusz` command-line tool from the `kronikarz-klaudiusz` repository. The tool talks to Discord over the official bot REST API and prints plain text or JSON to stdout. It never opens a persistent connection to Discord. It never writes anything back to Discord.
 
-## Prerequisite: DISCORD_BOT_TOKEN
+## Prerequisite: a Discord token
 
-The `klaudiusz` CLI needs the environment variable `DISCORD_BOT_TOKEN` set in the session before any command that talks to Discord runs. `channels`, `search`, `pull`, and `thread` all fail immediately when the token is missing, with this exact message on stderr and exit code 1:
+The `klaudiusz` CLI needs a bot token before any command that talks to Discord runs. It looks in the environment (`DISCORD_BOT_TOKEN`, then `DISCORD_READER_TOKEN`) and in the OS keychain, where `klaudiusz auth` stores the read-only reader token once per machine (see INSTALL.md). `channels`, `search`, `pull`, and `thread` all fail immediately when no token is found, with this exact message on stderr and exit code 1:
 
 ```
-[FAIL] set DISCORD_BOT_TOKEN in the environment
+[FAIL] no Discord token found; run 'klaudiusz auth' to store the reader token, or set DISCORD_BOT_TOKEN / DISCORD_READER_TOKEN in the environment
 ```
 
-If a command produces this message, stop and tell the user to export `DISCORD_BOT_TOKEN` in the shell that runs the session, then retry. Do not ask the user to paste the token value into the chat. Never print or log the token.
+If a command produces this message, stop and tell the user to run `klaudiusz auth` in a terminal (or export `DISCORD_READER_TOKEN` on a headless machine), then retry. Do not ask the user to paste the token value into the chat. Never print or log the token.
 
 ## Invocation
 

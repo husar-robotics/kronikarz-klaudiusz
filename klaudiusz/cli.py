@@ -8,7 +8,7 @@ from collections.abc import Callable
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 
-from . import cli_context, cli_newsletter, cli_publish_log, cli_read
+from . import cli_auth, cli_context, cli_newsletter, cli_publish_log, cli_read
 
 PACKAGE_NAME = "klaudiusz"
 FALLBACK_VERSION = "0.0.0+unknown"
@@ -42,6 +42,7 @@ SUBCOMMANDS: list[SubcommandRegistrar] = [
     cli_context.register,
     cli_newsletter.register,
     cli_publish_log.register,
+    cli_auth.register,
 ]
 
 

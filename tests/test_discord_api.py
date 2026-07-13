@@ -43,6 +43,29 @@ def test_context_manager_closes_client():
     assert client._client.is_closed
 
 
+# -- identity -----------------------------------------------------------------
+
+
+@respx.mock
+def test_me_returns_bot_user():
+    respx.get(f"{API_BASE_URL}/users/@me").mock(
+        return_value=httpx.Response(200, json={"id": "42", "username": "Klaudiusz Reader"})
+    )
+    with _client() as client:
+        assert client.me() == {"id": "42", "username": "Klaudiusz Reader"}
+
+
+@respx.mock
+def test_me_raises_on_bad_token():
+    respx.get(f"{API_BASE_URL}/users/@me").mock(
+        return_value=httpx.Response(401, json={"message": "401: Unauthorized", "code": 0})
+    )
+    with _client() as client:
+        with pytest.raises(DiscordAPIError) as excinfo:
+            client.me()
+    assert excinfo.value.status_code == 401
+
+
 # -- channels & threads -------------------------------------------------------
 
 

@@ -1,4 +1,4 @@
-"""Typed access to config.toml and to secrets in the environment."""
+"""Typed access to config.toml and to secrets in the environment or OS keychain."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import sys
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 _REPO_ROOT_CONFIG = Path(__file__).resolve().parent.parent / "config.toml"
 _PACKAGED_CONFIG = Path(__file__).resolve().parent / "config.toml"
@@ -78,14 +79,96 @@ def load_config(path: str | Path | None = None) -> Config:
     return Config(discord=discord, shrek_dog=shrek_dog, schedule=schedule)
 
 
-def bot_token() -> str:
-    """Read DISCORD_BOT_TOKEN from the environment.
+TokenTier = Literal["writer", "reader"]
+
+KEYRING_SERVICE = "klaudiusz"
+KEYRING_WRITER_ENTRY = "discord-bot-token"
+KEYRING_READER_ENTRY = "discord-reader-token"
+
+
+@dataclass(frozen=True)
+class ResolvedToken:
+    token: str
+    tier: TokenTier
+    source: str  # "env:<VAR>" or "keychain:klaudiusz/<entry>", printed verbatim by whoami
+
+
+def _keyring_get(entry: str) -> str | None:
+    """A stored token, or None when there is nothing usable.
+
+    Any keyring failure (module missing, no Secret Service on a headless box,
+    locked keychain) degrades to None so resolution falls through to the next
+    source instead of crashing. An empty stored value counts as absent.
+    """
+    try:
+        import keyring
+
+        value = keyring.get_password(KEYRING_SERVICE, entry)
+    except Exception:
+        return None
+    return value or None
+
+
+def _keyring_set(entry: str, value: str) -> None:
+    """Store a token, or die loudly: `auth` must never silently not-store."""
+    try:
+        import keyring
+
+        keyring.set_password(KEYRING_SERVICE, entry, value)
+    except Exception as exc:
+        sys.exit(f"[FAIL] could not store the token in the OS keychain: {exc}")
+
+
+def _keyring_delete(entry: str) -> bool:
+    """Delete a stored token; True if one existed, False if none did."""
+    try:
+        import keyring
+        import keyring.errors
+    except Exception as exc:
+        sys.exit(f"[FAIL] could not delete the token from the OS keychain: {exc}")
+    try:
+        keyring.delete_password(KEYRING_SERVICE, entry)
+    except keyring.errors.PasswordDeleteError:
+        return False
+    except Exception as exc:
+        sys.exit(f"[FAIL] could not delete the token from the OS keychain: {exc}")
+    return True
+
+
+def resolve_token(require_write: bool = False) -> ResolvedToken:
+    """The first token found, writer sources before reader sources.
 
     Read-only commands must be able to import this module and build a config
     without a token present, so the token is fetched lazily by callers that
     actually need to talk to Discord, never at import time.
     """
     token = os.environ.get("DISCORD_BOT_TOKEN")
-    if not token:
-        sys.exit("[FAIL] set DISCORD_BOT_TOKEN in the environment")
-    return token
+    if token:
+        return ResolvedToken(token, "writer", "env:DISCORD_BOT_TOKEN")
+
+    token = _keyring_get(KEYRING_WRITER_ENTRY)
+    if token:
+        return ResolvedToken(token, "writer", f"keychain:{KEYRING_SERVICE}/{KEYRING_WRITER_ENTRY}")
+
+    if require_write:
+        sys.exit(
+            "[FAIL] this command writes to Discord and needs the writer token; "
+            "run 'klaudiusz auth --writer' or set DISCORD_BOT_TOKEN in the environment"
+        )
+
+    token = os.environ.get("DISCORD_READER_TOKEN")
+    if token:
+        return ResolvedToken(token, "reader", "env:DISCORD_READER_TOKEN")
+
+    token = _keyring_get(KEYRING_READER_ENTRY)
+    if token:
+        return ResolvedToken(token, "reader", f"keychain:{KEYRING_SERVICE}/{KEYRING_READER_ENTRY}")
+
+    sys.exit(
+        "[FAIL] no Discord token found; run 'klaudiusz auth' to store the reader token, "
+        "or set DISCORD_BOT_TOKEN / DISCORD_READER_TOKEN in the environment"
+    )
+
+
+def bot_token(require_write: bool = False) -> str:
+    return resolve_token(require_write=require_write).token

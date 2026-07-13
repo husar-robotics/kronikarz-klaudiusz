@@ -60,7 +60,8 @@ def _cmd_post_newsletter(args: argparse.Namespace) -> int:
         run(markdown, args.date, cfg, discord_client=None, dry_run=True)
         return 0
 
-    with DiscordClient(config_module.bot_token()) as client:
+    token = config_module.bot_token(require_write=True)
+    with DiscordClient(token) as client:
         run(markdown, args.date, cfg, discord_client=client, dry_run=False)
     return 0
 
