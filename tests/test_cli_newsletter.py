@@ -245,3 +245,25 @@ def test_cli_missing_file_fails_loudly(monkeypatch, tmp_path):
 
     with pytest.raises(SystemExit):
         main(["post-newsletter", str(tmp_path / "nope.md"), "--date", DATE, "--dry-run"])
+
+
+def test_post_requires_writer_token_loudly_and_precedes_client(monkeypatch, tmp_path):
+    """A reader token must not satisfy post-newsletter, and the failure must
+    come before a Discord client is ever constructed."""
+    from klaudiusz import cli_newsletter
+
+    monkeypatch.setattr(config_module, "load_config", make_config)
+    monkeypatch.setenv("DISCORD_READER_TOKEN", "reader-tok")
+
+    class ExplodingClient:
+        def __init__(self, *args, **kwargs):
+            pytest.fail("DiscordClient must not be constructed without a writer token")
+
+    monkeypatch.setattr(cli_newsletter, "DiscordClient", ExplodingClient)
+    newsletter_file = tmp_path / "newsletter.md"
+    newsletter_file.write_text(_newsletter())
+
+    with pytest.raises(SystemExit) as excinfo:
+        main(["post-newsletter", str(newsletter_file), "--date", DATE])
+
+    assert "auth --writer" in str(excinfo.value)
