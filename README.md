@@ -1,67 +1,100 @@
 # Kronikarz Klaudiusz
 
-Discord ↔ LLM bridge. Klaudiusz reads a Discord server's public channels over
-the official bot REST API and writes back — the backend for two consumers: an
-automatic **newsletter** and a **research log** built from repo + Discord
-discussions. Cron-driven, zero always-on infrastructure.
+Discord ↔ LLM bridge for the husar-robotics community. Klaudiusz reads the
+project's Discord server over the official bot REST API and writes back — the
+backend for three consumers: an `/ask-klaudiusz` skill for Claude Code
+sessions, an automatic daily **newsletter**, and a **research log** built from
+repo + Discord discussions. Cron-driven, zero always-on infrastructure.
 
-Full design: [`docs/plans/2026-07-10-discord-llm-bridge.md`](docs/plans/2026-07-10-discord-llm-bridge.md)
-(ingestion architecture) and
-[`docs/plans/2026-07-12-consumers-design.md`](docs/plans/2026-07-12-consumers-design.md)
-(the three consumers: `/ask-klaudiusz` skill, daily `#daily-tldr` newsletter,
-research log).
+The tool is purpose-built for one guild (its id is baked into `config.toml`)
+and every command needs a bot token for that guild — so while the code is
+public, running it is useful to community members only.
+
+## Quick start (community beta)
+
+Run the CLI through `uvx` — no install, no clone:
+
+```sh
+uvx --from git+https://github.com/husar-robotics/kronikarz-klaudiusz klaudiusz --help
+```
+
+Store the read-only bot token once. It comes from the pinned message in the
+private beta channel on Discord; the prompt hides your input, verifies the
+token against Discord, and stores it in your OS keychain — nothing to export
+in your shell:
+
+```sh
+uvx --from git+https://github.com/husar-robotics/kronikarz-klaudiusz klaudiusz auth
+uvx --from git+https://github.com/husar-robotics/kronikarz-klaudiusz klaudiusz whoami
+```
+
+Read commands:
+
+| command | what it does |
+| --- | --- |
+| `channels` | list the guild's text, announcement, and forum channels |
+| `search <query> [--limit N]` | search the guild's message history |
+| `pull --channel <name\|id> --since <Nd\|YYYY-MM-DD> [--json]` | one channel's messages and threads |
+| `thread <id>` | full transcript of one thread |
+| `context --date YYYY-MM-DD [--out DIR]` | assemble a day's context bundle |
+| `whoami` | which bot token the commands would use, and whose it is |
+
+`post-newsletter` and `publish-log` are operator commands: they run inside the
+scheduled routine and need the writer token / a shrek-dog PAT.
 
 ## Tokens
 
 Two bot identities exist ([design](docs/plans/2026-07-13-token-tiers.md)):
 
-- **Klaudiusz** (writer) — can post the newsletter. Its token is held only by
-  the maintainer and the scheduled routine, never shared.
-- **Klaudiusz Reader** (read-only) — invited with View Channels + Read Message
-  History only. Its token is what closed-beta users get, from the pinned
-  message in the private beta channel. It is never committed to any repo.
+- **the writer** ("Klaudiusz") — can post the newsletter. Its token is held
+  only by the maintainer and the scheduled routine, never shared.
+- **the reader** — invited with View Channels + Read Message History only.
+  Its token is what beta users get from the pinned beta-channel message. It is
+  never committed to any repo.
 
-Every command that talks to Discord resolves a token in this order, first hit
-wins; write commands (`post-newsletter`) stop after the writer sources:
+Every command resolves a token in this order, first hit wins; write commands
+stop after the writer sources:
 
 1. `DISCORD_BOT_TOKEN` in the environment (writer)
 2. OS keychain `klaudiusz/discord-bot-token` (writer)
 3. `DISCORD_READER_TOKEN` in the environment (reader)
 4. OS keychain `klaudiusz/discord-reader-token` (reader)
 
-Beta setup is one command — paste the reader token when prompted (input is
-hidden, verified against Discord, then stored in your OS keychain):
+`klaudiusz auth` stores the reader token (`--writer` for the writer token,
+`--clear` to remove both). On a headless box without an OS keychain, export
+`DISCORD_READER_TOKEN` instead — keychain reads degrade silently to env-only.
+
+## Development
 
 ```sh
-uvx --from git+https://github.com/husar-robotics/kronikarz-klaudiusz klaudiusz auth
+uv sync
+uv run pytest
+uv run ruff check .
 ```
 
-`klaudiusz whoami` shows which bot you are authenticated as and where the
-token came from; `klaudiusz auth --clear` removes stored tokens. On a headless
-box without an OS keychain, export `DISCORD_READER_TOKEN` instead.
+Python 3.11–3.12, `httpx` + `keyring` as the only runtime dependencies.
+Design docs live in [`docs/plans/`](docs/plans/) — start with the
+[ingestion architecture](docs/plans/2026-07-10-discord-llm-bridge.md) and the
+[three consumers](docs/plans/2026-07-12-consumers-design.md).
 
-Reader bot invite URL (View Channels + Read Message History, nothing else):
-`https://discord.com/api/oauth2/authorize?client_id=<READER_APP_ID>&permissions=66560&scope=bot`
+## Maintainer: bot setup
 
-## Phase 0 — smoke test (gate G0)
+- **Reader bot** — one-time Developer Portal checklist (Message Content intent
+  ON, Public Bot OFF, invite with `permissions=66560`) in the
+  [token-tiers design doc](docs/plans/2026-07-13-token-tiers.md).
+- **Writer bot** — same portal steps but invited with
+  `permissions=84992` (adds Send Messages + Embed Links; never Mention
+  Everyone), then verified with the Phase 0 smoke test:
 
-Prerequisites (manual, Discord Developer Portal):
+  ```sh
+  DISCORD_BOT_TOKEN=... uv run smoke.py <guild_id> <channel_id>
+  ```
 
-1. Enable **Message Content Intent** (Bot tab). Without it, message `content`
-   reads back empty over REST and gateway alike — the whole pipeline goes blank.
-2. Invite the bot with **View Channels, Read Message History, Send Messages,
-   Embed Links**. Do *not* grant Mention Everyone. Invite URL, built from the
-   app's own client id:
-   `https://discord.com/api/oauth2/authorize?client_id=<APP_ID>&permissions=84992&scope=bot`
-3. Turn on Developer Mode in Discord and copy the **guild (serwer) ID** and the
-   target **channel ID** (right-click → Kopiuj identyfikator).
+  The script passes (gate G0) when it authenticates, reads a human-authored
+  message with non-empty content (proving the Message Content intent is ON),
+  and posts a test message. Guild and channel ids come from Discord's
+  Developer Mode (right-click → Copy ID / Kopiuj identyfikator).
 
-Then, with a normal human message present in the channel:
+## License
 
-```sh
-DISCORD_BOT_TOKEN=... uv run smoke.py <guild_id> <channel_id>
-```
-
-G0 passes when the script authenticates, reports the intent **ON** (by reading a
-human-authored message with non-empty content), and posts a test message. If it
-reports the intent OFF or inconclusive, it tells you exactly what to fix.
+[MIT](LICENSE)
