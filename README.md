@@ -11,6 +11,38 @@ Full design: [`docs/plans/2026-07-10-discord-llm-bridge.md`](docs/plans/2026-07-
 (the three consumers: `/ask-klaudiusz` skill, daily `#daily-tldr` newsletter,
 research log).
 
+## Tokens
+
+Two bot identities exist ([design](docs/plans/2026-07-13-token-tiers.md)):
+
+- **Klaudiusz** (writer) — can post the newsletter. Its token is held only by
+  the maintainer and the scheduled routine, never shared.
+- **Klaudiusz Reader** (read-only) — invited with View Channels + Read Message
+  History only. Its token is what closed-beta users get, from the pinned
+  message in the private beta channel. It is never committed to any repo.
+
+Every command that talks to Discord resolves a token in this order, first hit
+wins; write commands (`post-newsletter`) stop after the writer sources:
+
+1. `DISCORD_BOT_TOKEN` in the environment (writer)
+2. OS keychain `klaudiusz/discord-bot-token` (writer)
+3. `DISCORD_READER_TOKEN` in the environment (reader)
+4. OS keychain `klaudiusz/discord-reader-token` (reader)
+
+Beta setup is one command — paste the reader token when prompted (input is
+hidden, verified against Discord, then stored in your OS keychain):
+
+```sh
+uvx --from git+https://github.com/husar-robotics/kronikarz-klaudiusz klaudiusz auth
+```
+
+`klaudiusz whoami` shows which bot you are authenticated as and where the
+token came from; `klaudiusz auth --clear` removes stored tokens. On a headless
+box without an OS keychain, export `DISCORD_READER_TOKEN` instead.
+
+Reader bot invite URL (View Channels + Read Message History, nothing else):
+`https://discord.com/api/oauth2/authorize?client_id=<READER_APP_ID>&permissions=66560&scope=bot`
+
 ## Phase 0 — smoke test (gate G0)
 
 Prerequisites (manual, Discord Developer Portal):
