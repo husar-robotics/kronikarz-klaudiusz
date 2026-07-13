@@ -117,6 +117,12 @@ class DiscordClient:
             raise DiscordAPIError(resp)
         return resp
 
+    # -- identity -----------------------------------------------------------
+
+    def me(self) -> dict:
+        """The bot's own user object (GET /users/@me): id, username."""
+        return self._request("GET", "/users/@me").json()
+
     # -- channels & threads --------------------------------------------------
 
     def guild_channels(self, guild_id: str) -> list[dict]:
