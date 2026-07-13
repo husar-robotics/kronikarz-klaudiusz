@@ -66,7 +66,7 @@ routine/operator territory and beta users never run it.
    **Message Content Intent ON** (without it, message `content` reads back
    empty — the Phase 0 failure mode) and **Public Bot OFF**; copy the token.
 2. Invite it with
-   `https://discord.com/api/oauth2/authorize?client_id=<READER_APP_ID>&permissions=66560&scope=bot`
+   `https://discord.com/oauth2/authorize?client_id=1526141917933473792&permissions=66560&scope=bot`
    — View Channels + Read Message History, no Send Messages. Make sure it can
    only see channels all members can see, or the shared token over-grants.
 3. Verify: `klaudiusz auth` (paste the token → `[OK] verified as Klaudiusz
