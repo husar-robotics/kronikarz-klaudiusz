@@ -1,0 +1,52 @@
+## Commits
+
+- [7b8e268](https://github.com/husar-robotics/shrek-dog/commit/7b8e26892d0ec13776d20d85dd6c62dda49cd0b6) Merge pull request #16 from husar-robotics/mwysocki/mjwarp-backend — marcinwysocki
+- [c917c12](https://github.com/husar-robotics/shrek-dog/commit/c917c12f291d10d99f57024ac49b1bae65593132) updated vastai skill — marcinwysocki
+- [97d64de](https://github.com/husar-robotics/shrek-dog/commit/97d64de327d00e412859faff30b49721db30df5d) chore(spike): delete spike_warp.py, Phase 0 is closed — marcinwysocki
+- [deecaba](https://github.com/husar-robotics/shrek-dog/commit/deecabaf774e5798b7b66238d17f6bd1e0c41278) refactor(sim): drop the dead sim-config guard in WojtekEnv init — marcinwysocki
+- [3b52353](https://github.com/husar-robotics/shrek-dog/commit/3b52353ea10b036d304bbc097ed844dc7df88a78) refactor(sim): centralize backend data construction; reword comments per review — marcinwysocki
+- [3467ca6](https://github.com/husar-robotics/shrek-dog/commit/3467ca6e7c9bff5602c4caf1a46fe48bdeeb80e3) feat(sim): default backend auto after GPU validation — marcinwysocki
+- [d508f7f](https://github.com/husar-robotics/shrek-dog/commit/d508f7f4ef9120b5d0a1b1271715ae8780b874d9) fix(sim): size the warp budget for the eval batch too — marcinwysocki
+- [b6fba8c](https://github.com/husar-robotics/shrek-dog/commit/b6fba8ccb673387ff8c75672150baee3376425ff) test(sim): backend resolution and budget kwargs — marcinwysocki
+- [536c122](https://github.com/husar-robotics/shrek-dog/commit/536c122361eaaba15c72ae16df7bc1af33da61fe) feat(sim): backend flag with warp buffer budgets (Workstream A) — marcinwysocki
+- [9a7778e](https://github.com/husar-robotics/shrek-dog/commit/9a7778ea80440fc895f6baf6ad094e53a9e1b272) build(deps): pin warp-lang==1.13.0 — marcinwysocki
+- [07d1026](https://github.com/husar-robotics/shrek-dog/commit/07d10262c63dfc8b9ebbef81719d8330f76a20e2) docs: plain-prose pass over the phase-0 report and spike comments — marcinwysocki
+- [cb1a442](https://github.com/husar-robotics/shrek-dog/commit/cb1a442006a0b7431e93b52be40d40880408f92f) docs(phase0): GPU spike results — GO recommendation — marcinwysocki
+- [0e213b2](https://github.com/husar-robotics/shrek-dog/commit/0e213b204ef91b71dfd1f7ccafb87cadaa64580a) fix(spike): njmax is per-world, only naconmax scales with the batch — marcinwysocki
+- [c6aa14f](https://github.com/husar-robotics/shrek-dog/commit/c6aa14f58a133701e1755e3751cb6c86fee5216b) fix(spike): size warp budgets from GPU-measured needs, scale by n_envs — marcinwysocki
+- [aee17b7](https://github.com/husar-robotics/shrek-dog/commit/aee17b718e8f0ac829a96b8a966a6183eb4a439e) fix(tests): capture_goldens reset key must match test_latency's replay convention — marcinwysocki
+- [a71ac74](https://github.com/husar-robotics/shrek-dog/commit/a71ac74502949054adcf5f35fd3ba887ddb87ea1) test(fixtures): add golden capture script; regenerate goldens with it — marcinwysocki
+- [07fab49](https://github.com/husar-robotics/shrek-dog/commit/07fab49747beb7286a66de535ed2d535cbca8f79) chore(spike): add run.sh spike-warp entry (script docstring already references it) — marcinwysocki
+- [adff3c3](https://github.com/husar-robotics/shrek-dog/commit/adff3c3d5ac4188943959ed35113d7897f2395e1) docs(report): tighten verbose comments to plain prose (no behavior change) — marcinwysocki
+- [6289773](https://github.com/husar-robotics/shrek-dog/commit/6289773a88e2809a00c7ca159a2ef2fa72983667) docs(phase0): stage MJWarp Phase-0 report with pre-GPU findings — marcinwysocki
+- [ab06f7c](https://github.com/husar-robotics/shrek-dog/commit/ab06f7c4d06a0bf8ef610640f3e498145cb09121) chore(spike): Phase-0 MJWarp feasibility spike script (temporary) — marcinwysocki
+- [93e131e](https://github.com/husar-robotics/shrek-dog/commit/93e131e18f32b30b7741a6f250788d4360cda607) feat(eval): add report command — battery + torque/power/foot-force/termination — marcinwysocki
+- [c153777](https://github.com/husar-robotics/shrek-dog/commit/c1537771f33854baba097399519fd01ef1513760) test(fixtures): capture baseline latency + DR goldens for MJWarp-plan regression gates — marcinwysocki
+- [465ce78](https://github.com/husar-robotics/shrek-dog/commit/465ce78605b9c529e3685d66735932ad6c4753b0) Merge pull request #17 from husar-robotics/mwysocki/skills-opt-in — marcinwysocki
+- [8608c00](https://github.com/husar-robotics/shrek-dog/commit/8608c0097d7b23fb56602be920bfe695809a6211) chore(skills): make Claude skills opt-in via skills/ directory — marcinwysocki
+- [fae76f8](https://github.com/husar-robotics/shrek-dog/commit/fae76f81643458c126959aad236d1d51d9232f14) Merge pull request #3 from husar-robotics/mjx-training-skill — marcinwysocki
+- [b0ec5b6](https://github.com/husar-robotics/shrek-dog/commit/b0ec5b60b72c84a5a1b37a6e0bca75bf4c48d53c) docs(skills): require user confirmation before applying MJX skills — marcinwysocki
+- [a6bd98c](https://github.com/husar-robotics/shrek-dog/commit/a6bd98c06d94d4a85aac6c7201996381b7629afd) docs(skills): trim mjx-robot-model-prep, settle model-copy provenance — marcinwysocki
+- [080c763](https://github.com/husar-robotics/shrek-dog/commit/080c7635c1ffda4b10220ca451caf06009ded533) docs(skills): fix ssh pattern and trim vastai-gpu-training-ops — marcinwysocki
+- [2717206](https://github.com/husar-robotics/shrek-dog/commit/271720624acf8a3fb6d010f8fe4161f809b87f1a) docs(skills): trim brax-locomotion-training to the useful bits — marcinwysocki
+- [eda73ca](https://github.com/husar-robotics/shrek-dog/commit/eda73ca1fcc16d183c2d256739ab291c054c49f9) Merge pull request #14 from husar-robotics/mwysocki/docs-isaac-vs-mujoco — marcinwysocki
+- [aa594f4](https://github.com/husar-robotics/shrek-dog/commit/aa594f48ec19865b2533c86198d3b8355cbb6f83) refactor(skills): split MJX training workflow — marcinwysocki
+- [1fecf7d](https://github.com/husar-robotics/shrek-dog/commit/1fecf7d3faab21f338537a7eb15b1fd6cfb2ba1e) Merge remote-tracking branch 'origin/main' into mjx-training-skill — marcinwysocki
+- [fe8ae66](https://github.com/husar-robotics/shrek-dog/commit/fe8ae66fdce22b19ccfea4a6ccb3d699b31e04ad) Merge pull request #10 from husar-robotics/mp/add_user_info_to_wcss_skill — marcinwysocki
+- [fc43b08](https://github.com/husar-robotics/shrek-dog/commit/fc43b08223f8bbddc8fd166e66625e472ce9cac0) Merge branch 'main' into mp/add_user_info_to_wcss_skill — marcinwysocki
+- [ab1a8a1](https://github.com/husar-robotics/shrek-dog/commit/ab1a8a1f787c0723993111b25b5d568305f45e95) Merge pull request #13 from husar-robotics/mwysocki/repo-reorg — marcinwysocki
+- [11e156b](https://github.com/husar-robotics/shrek-dog/commit/11e156b4c8deaf8ad6e3ed40b3fa890f117a48f1) docs(plans): add MJWarp migration + sim2real DR + eval harness plan — marcinwysocki
+- [dc2e1b8](https://github.com/husar-robotics/shrek-dog/commit/dc2e1b8ccde9f75d60606ed8de6630f25a00d64a) docs(research): add Isaac vs MuJoCo evaluation for Wojtek — marcinwysocki
+- [8aef886](https://github.com/husar-robotics/shrek-dog/commit/8aef886c3607b3f9fa60a4348b42865d7eab71ab) chore(deps): regenerate uv.lock (fbb-rl -> wojtek-rl) — marcinwysocki
+- [907c19b](https://github.com/husar-robotics/shrek-dog/commit/907c19b28b1b582082beb62531aee568274838d3) refactor(demo): rename four_bar_bot/fbb labels -> Wojtek — marcinwysocki
+- [db2124d](https://github.com/husar-robotics/shrek-dog/commit/db2124d6411c6de1b18a74d41b3b713f65235944) refactor(model): rename MJCF model name four_bar_bot -> wojtek — marcinwysocki
+- [31e82cc](https://github.com/husar-robotics/shrek-dog/commit/31e82cc90e9141fc73f37af3e7cf877b13ea089d) refactor(ros): rename /fbb/* runtime topics & services -> /wojtek/* — marcinwysocki
+
+## Merged PRs
+
+- [#17](https://github.com/husar-robotics/shrek-dog/pull/17) Make Claude skills opt-in: move to skills/, gitignore .claude/ — marcinwysocki
+- [#16](https://github.com/husar-robotics/shrek-dog/pull/16) feat(training): MJWarp backend switch — Phase-0 spike, eval report, golden baselines — marcinwysocki
+- [#14](https://github.com/husar-robotics/shrek-dog/pull/14) docs(research): Isaac vs MuJoCo evaluation for Wojtek — marcinwysocki
+- [#13](https://github.com/husar-robotics/shrek-dog/pull/13) refactor: monorepo reorg + rename robot to Wojtek — marcinwysocki
+- [#10](https://github.com/husar-robotics/shrek-dog/pull/10) chore: add user source to wcss claude skill — mipo57
+- [#3](https://github.com/husar-robotics/shrek-dog/pull/3) Add MJX training skills: model prep, Brax training, Vast.ai ops — marcinwysocki
