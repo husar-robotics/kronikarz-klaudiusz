@@ -4,3 +4,7 @@ uv.lock
 state.json
 __pycache__/
 .env
+.claude/worktrees/
+context-*/
+newsletter-draft.md
+newsletter-test.md
