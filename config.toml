@@ -1,6 +1,6 @@
 [discord]
 guild_id = "1521375012232101948"
-newsletter_channel_id = "..."   # starts as a staging channel, flipped to #daily-tldr at gate G3
+newsletter_channel_id = "1525240079403188285"  # daily-tldr (gate G3 flipped 2026-07-13)
 ignore_channels = ["bot-news"]  # channels excluded from ingestion
 
 [shrek_dog]

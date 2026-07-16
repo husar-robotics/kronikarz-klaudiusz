@@ -152,7 +152,7 @@ def run(
     runs first, so a dead link never reaches Discord even in a dry run.
     """
     rewritten, dropped = _validate_and_rewrite_links(markdown, http_client)
-    rendered = chunk_newsletter(rewritten)
+    rendered = chunk_newsletter(rewritten, header=f"# Kronika dnia — {date}")
 
     if dry_run:
         _print_dry_run_plan(rendered, dropped)

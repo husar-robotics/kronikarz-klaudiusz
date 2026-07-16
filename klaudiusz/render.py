@@ -35,8 +35,11 @@ class RenderedNewsletter:
     embed_batches: list[list[dict]]
 
 
-def chunk_newsletter(markdown: str) -> RenderedNewsletter:
+def chunk_newsletter(markdown: str, header: str | None = None) -> RenderedNewsletter:
     """Split a four-section newsletter markdown document for Discord posting.
+
+    `header` is prepended to the lead message (before the TL;DR content) and
+    counts toward its length limit.
 
     Fails loudly (`SystemExit`) when the required `##` sections are missing,
     out of order, or when a single paragraph/bullet cannot fit an embed even
@@ -44,7 +47,8 @@ def chunk_newsletter(markdown: str) -> RenderedNewsletter:
     """
     sections = _parse_sections(markdown)
 
-    lead_chunks = split_at_boundaries(sections["TL;DR"], LEAD_LIMIT)
+    tldr = f"{header}\n\n{sections['TL;DR']}" if header else sections["TL;DR"]
+    lead_chunks = split_at_boundaries(tldr, LEAD_LIMIT)
     lead = lead_chunks[0] if lead_chunks else ""
     overflow = "\n\n".join(lead_chunks[1:])
 
