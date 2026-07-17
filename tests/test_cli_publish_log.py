@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 from pathlib import Path
 
+import httpx
 import pytest
+import respx
 
 from klaudiusz import cli_publish_log as cpl
 from klaudiusz.cli import main
@@ -230,25 +233,31 @@ def bare_repo(tmp_path, git_env) -> Path:
     return origin
 
 
-def _install_gh_router(monkeypatch, pr_url: str = f"https://github.com/{REPO}/pull/7"):
-    """Patch subprocess.run: record every call, fake gh, pass git through to the real thing."""
-    calls: list[tuple[list[str], dict]] = []
+def _record_subprocess(monkeypatch):
+    """Patch subprocess.run to record every call's argv, passing through to the real thing."""
+    calls: list[list[str]] = []
     real_run = subprocess.run
 
-    def router(cmd, **kwargs):
-        calls.append((list(cmd), kwargs))
-        if cmd[0] == "gh":
-            return subprocess.CompletedProcess(cmd, 0, stdout=pr_url + "\n", stderr="")
+    def recorder(cmd, **kwargs):
+        calls.append(list(cmd))
         return real_run(cmd, **kwargs)
 
-    monkeypatch.setattr(cpl.subprocess, "run", router)
+    monkeypatch.setattr(cpl.subprocess, "run", recorder)
     return calls
 
 
+def _mock_pr_endpoint(pr_url: str = f"https://github.com/{REPO}/pull/7"):
+    return respx.post(f"https://api.github.com/repos/{REPO}/pulls").mock(
+        return_value=httpx.Response(201, json={"html_url": pr_url})
+    )
+
+
+@respx.mock
 def test_publish_end_to_end(tmp_path, monkeypatch, bare_repo):
     bundle = cpl.validate_bundle(make_bundle(tmp_path), DATE)
-    monkeypatch.setenv("SHREK_DOG_TOKEN", "s3cret-token-value")
-    calls = _install_gh_router(monkeypatch)
+    monkeypatch.setenv("HVSR_TOKEN", "s3cret-token-value")
+    calls = _record_subprocess(monkeypatch)
+    pr_route = _mock_pr_endpoint()
 
     pr_url = cpl.publish_bundle(bundle, make_config(), clone_url=str(bare_repo))
 
@@ -268,24 +277,25 @@ def test_publish_end_to_end(tmp_path, monkeypatch, bare_repo):
     month_blob = _git("-C", str(bare_repo), "show", f"{branch}:{LOG_DIR}/2026-07.md")
     assert f"## {DATE}" in month_blob
 
-    # gh pr create ran once, with the right head and the token only in its env.
-    gh_calls = [(cmd, kwargs) for cmd, kwargs in calls if cmd[0] == "gh"]
-    assert len(gh_calls) == 1
-    gh_cmd, gh_kwargs = gh_calls[0]
-    assert gh_cmd[:3] == ["gh", "pr", "create"]
-    assert gh_cmd[gh_cmd.index("--repo") + 1] == REPO
-    assert gh_cmd[gh_cmd.index("--head") + 1] == branch
-    assert gh_cmd[gh_cmd.index("--title") + 1] == f"research log: {DATE}"
-    body = gh_cmd[gh_cmd.index("--body") + 1]
-    assert f"newsletters/{DATE}.md" in body
-    assert "Generated with [Claude Code]" in body
-    assert gh_kwargs["env"]["GH_TOKEN"] == "s3cret-token-value"
+    # The PR was opened once, against the default branch, with the right head
+    # and the token only in the Authorization header.
+    assert pr_route.call_count == 1
+    request = pr_route.calls.last.request
+    assert request.headers["Authorization"] == "Bearer s3cret-token-value"
+    payload = json.loads(request.content)
+    assert payload["head"] == branch
+    assert payload["base"] == "main"
+    assert payload["title"] == f"research log: {DATE}"
+    assert f"newsletters/{DATE}.md" in payload["body"]
+    assert "Generated with [Claude Code]" in payload["body"]
 
-    # The token value never entered any argv (git or gh).
-    for cmd, _ in calls:
+    # The token value never entered any argv or any URL.
+    for cmd in calls:
         assert all("s3cret-token-value" not in str(part) for part in cmd)
+    assert "s3cret-token-value" not in str(request.url)
 
 
+@respx.mock
 def test_duplicate_date_refused_and_nothing_pushed(tmp_path, monkeypatch, bare_repo):
     # Seed the origin with a month file that already has the date's section.
     seeded = tmp_path / "seeded"
@@ -298,8 +308,8 @@ def test_duplicate_date_refused_and_nothing_pushed(tmp_path, monkeypatch, bare_r
     _git("push", "origin", "main", cwd=seeded)
 
     bundle = cpl.validate_bundle(make_bundle(tmp_path), DATE)
-    monkeypatch.setenv("SHREK_DOG_TOKEN", "s3cret-token-value")
-    calls = _install_gh_router(monkeypatch)
+    monkeypatch.setenv("HVSR_TOKEN", "s3cret-token-value")
+    pr_route = _mock_pr_endpoint()
 
     with pytest.raises(SystemExit) as excinfo:
         cpl.publish_bundle(bundle, make_config(), clone_url=str(bare_repo))
@@ -309,12 +319,12 @@ def test_duplicate_date_refused_and_nothing_pushed(tmp_path, monkeypatch, bare_r
     assert "refusing" in message
     branches = _git("-C", str(bare_repo), "for-each-ref", "refs/heads/research-log")
     assert branches.strip() == ""
-    assert not any(cmd[0] == "gh" for cmd, _ in calls)
+    assert not pr_route.called
 
 
 def test_missing_token_is_loud_and_precedes_any_subprocess(tmp_path, monkeypatch):
     bundle = cpl.validate_bundle(make_bundle(tmp_path), DATE)
-    monkeypatch.delenv("SHREK_DOG_TOKEN", raising=False)
+    monkeypatch.delenv("HVSR_TOKEN", raising=False)
     monkeypatch.setattr(
         cpl.subprocess,
         "run",
@@ -324,7 +334,7 @@ def test_missing_token_is_loud_and_precedes_any_subprocess(tmp_path, monkeypatch
     with pytest.raises(SystemExit) as excinfo:
         cpl.publish_bundle(bundle, make_config())
 
-    assert "SHREK_DOG_TOKEN" in str(excinfo.value)
+    assert "HVSR_TOKEN" in str(excinfo.value)
 
 
 # -- CLI ------------------------------------------------------------------------
@@ -335,7 +345,7 @@ def test_dry_run_validates_prints_plan_and_never_runs_git(tmp_path, monkeypatch,
     config_path = tmp_path / "config.toml"
     config_path.write_text(CONFIG_TOML)
     monkeypatch.setenv("KLAUDIUSZ_CONFIG", str(config_path))
-    monkeypatch.delenv("SHREK_DOG_TOKEN", raising=False)
+    monkeypatch.delenv("HVSR_TOKEN", raising=False)
     monkeypatch.setattr(
         cpl.subprocess,
         "run",

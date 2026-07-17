@@ -153,6 +153,17 @@ def _keyring_delete(entry: str) -> bool:
     return True
 
 
+def hvsr_token() -> str | None:
+    """HVSR_TOKEN (the fine-grained GitHub PAT for shrek-dog), or None when absent.
+
+    Reads the process environment only: `load_env` has already folded the
+    repo-root .env into it at CLI entry, and that also puts the value where
+    child processes need it — git's inline credential helper reads
+    $HVSR_TOKEN inside git's own subprocess. An empty value counts as absent.
+    """
+    return os.environ.get("HVSR_TOKEN") or None
+
+
 def resolve_token(require_write: bool = False) -> ResolvedToken:
     """The first token found, writer sources before reader sources.
 

@@ -308,3 +308,42 @@ def test_keyring_delete_loud_on_broken_backend(monkeypatch):
         real_keyring_delete(KEYRING_READER_ENTRY)
 
     assert "[FAIL] could not delete" in str(excinfo.value)
+
+
+# -- HVSR_TOKEN resolution (env, populated by load_env at CLI entry) --------------
+
+
+def test_hvsr_token_from_env(monkeypatch):
+    monkeypatch.setenv("HVSR_TOKEN", "from-env")
+
+    assert config_module.hvsr_token() == "from-env"
+
+
+def test_hvsr_token_absent_is_none():
+    assert config_module.hvsr_token() is None
+
+
+def test_hvsr_token_empty_counts_as_absent(monkeypatch):
+    monkeypatch.setenv("HVSR_TOKEN", "")
+
+    assert config_module.hvsr_token() is None
+
+
+def test_load_env_populates_hvsr_token(tmp_path, monkeypatch):
+    monkeypatch.delenv("HVSR_TOKEN", raising=False)
+    env_file = tmp_path / ".env"
+    env_file.write_text('HVSR_TOKEN="dotenv-file-token"\n')
+
+    config_module.load_env(env_file)
+
+    assert config_module.hvsr_token() == "dotenv-file-token"
+
+
+def test_load_env_never_overrides_real_environment(tmp_path, monkeypatch):
+    monkeypatch.setenv("HVSR_TOKEN", "from-env")
+    env_file = tmp_path / ".env"
+    env_file.write_text('HVSR_TOKEN="dotenv-file-token"\n')
+
+    config_module.load_env(env_file)
+
+    assert config_module.hvsr_token() == "from-env"

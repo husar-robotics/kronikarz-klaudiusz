@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import subprocess
 
 import httpx
 import pytest
@@ -9,7 +8,6 @@ import respx
 
 from klaudiusz import cli_context
 from klaudiusz import config as config_module
-from klaudiusz import repo_signal as rs_module
 from klaudiusz.cli import main
 from klaudiusz.config import Config, DiscordConfig, ScheduleConfig, ShrekDogConfig
 from klaudiusz.discord_api import DiscordClient
@@ -86,18 +84,18 @@ BUSY_MESSAGES.append(
 )
 
 
-def _no_repo_events(cmd, **kwargs):
-    assert cmd[0] == "gh"
-    return subprocess.CompletedProcess(args=cmd, returncode=0, stdout="[]", stderr="")
+def _empty_signal() -> dict:
+    return {"commits": [], "merged_prs": [], "opened_issues": []}
 
 
 @pytest.fixture
 def patch_env(monkeypatch):
-    def _apply(messages: list[dict], threshold: int = 10, gh_run=_no_repo_events):
+    def _apply(messages: list[dict], threshold: int = 10, signal: dict | None = None):
+        fixed_signal = signal if signal is not None else _empty_signal()
         monkeypatch.setattr(cli_context, "DiscordClient", make_client(messages))
         monkeypatch.setattr(config_module, "load_config", lambda: make_config(threshold))
         monkeypatch.setattr(config_module, "bot_token", lambda: "test-token")
-        monkeypatch.setattr(rs_module.subprocess, "run", gh_run)
+        monkeypatch.setattr(cli_context, "repo_signal", lambda repo, start, end: fixed_signal)
 
     return _apply
 
@@ -159,25 +157,16 @@ def test_busy_day_exits_0_and_resolves_arxiv_link(patch_env, tmp_path, capsys):
 
 
 def test_busy_day_from_repo_events_alone(patch_env, tmp_path):
-    def gh_with_a_commit(cmd, **kwargs):
-        assert cmd[0] == "gh"
-        if cmd[1] == "api":
-            commit = {
-                "sha": "a" * 40,
-                "commit": {
-                    "author": {"name": "Ada", "date": "2026-07-11T12:00:00Z"},
-                    "committer": {"name": "Ada", "date": "2026-07-11T12:00:00Z"},
-                    "message": "Fix thing",
-                },
-                "author": {"login": "ada"},
-                "html_url": f"https://github.com/{REPO}/commit/{'a' * 40}",
-            }
-            return subprocess.CompletedProcess(
-                args=cmd, returncode=0, stdout=json.dumps([commit]), stderr=""
-            )
-        return subprocess.CompletedProcess(args=cmd, returncode=0, stdout="[]", stderr="")
-
-    patch_env(QUIET_MESSAGES, threshold=10, gh_run=gh_with_a_commit)
+    signal = _empty_signal()
+    signal["commits"] = [
+        {
+            "sha": "aaaaaaa",
+            "author": "ada",
+            "message": "Fix thing",
+            "url": f"https://github.com/{REPO}/commit/{'a' * 40}",
+        }
+    ]
+    patch_env(QUIET_MESSAGES, threshold=10, signal=signal)
     out_dir = tmp_path / "bundle"
 
     exit_code = main(["context", "--date", "2026-07-11", "--out", str(out_dir)])
@@ -186,6 +175,11 @@ def test_busy_day_from_repo_events_alone(patch_env, tmp_path):
     meta = json.loads((out_dir / "meta.json").read_text())
     assert meta["repo_event_count"] == 1
     assert meta["quiet"] is False
+
+    repo_signal_md = (out_dir / "repo-signal.md").read_text()
+    assert "## Commits" in repo_signal_md
+    assert "[aaaaaaa]" in repo_signal_md
+    assert "Fix thing — ada" in repo_signal_md
 
 
 def test_refuses_non_empty_existing_out_dir(patch_env, tmp_path):
