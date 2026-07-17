@@ -9,6 +9,7 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 
 from . import cli_auth, cli_context, cli_newsletter, cli_publish_log, cli_read
+from .config import load_env
 
 PACKAGE_NAME = "klaudiusz"
 FALLBACK_VERSION = "0.0.0+unknown"
@@ -63,5 +64,15 @@ def main(argv: list[str] | None = None) -> int:
     return args.func(args)
 
 
+def run() -> int:
+    """Console-script entry point: load .env, then dispatch.
+
+    Kept separate from main() so the test suite can drive the parser
+    hermetically, without a .env being read into the process environment.
+    """
+    load_env()
+    return main()
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(run())

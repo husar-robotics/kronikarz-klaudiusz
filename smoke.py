@@ -102,6 +102,9 @@ def post_test(c: httpx.Client, channel_id: str) -> None:
 
 
 def main() -> None:
+    from klaudiusz.config import load_env
+
+    load_env()  # so `uv run smoke.py` picks up .env without a manual source
     token = os.environ.get("DISCORD_BOT_TOKEN")
     if not token:
         sys.exit("set DISCORD_BOT_TOKEN in the environment")

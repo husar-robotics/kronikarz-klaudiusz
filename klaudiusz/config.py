@@ -17,6 +17,24 @@ _PACKAGED_CONFIG = Path(__file__).resolve().parent / "config.toml"
 # package and that copy is the fallback.
 DEFAULT_CONFIG_PATH = _REPO_ROOT_CONFIG if _REPO_ROOT_CONFIG.is_file() else _PACKAGED_CONFIG
 
+# The .env sits next to the repo-root config.toml. In an installed wheel there
+# is no repo root, so this path won't exist and load_env is a no-op there.
+DEFAULT_ENV_PATH = _REPO_ROOT_CONFIG.parent / ".env"
+
+
+def load_env(path: str | Path | None = None) -> None:
+    """Populate the environment from a .env file so the DISCORD_*_TOKEN secrets
+    don't need a manual `source` before each run.
+
+    Real environment variables always win over the file (override=False), and a
+    missing file is a silent no-op, so token resolution then falls through to the
+    keychain exactly as before. Called once at process entry (see cli.run and
+    smoke.py), never at import time, which keeps tests that drive main() hermetic.
+    """
+    from dotenv import load_dotenv
+
+    load_dotenv(DEFAULT_ENV_PATH if path is None else path, override=False)
+
 
 @dataclass(frozen=True)
 class DiscordConfig:
