@@ -266,4 +266,6 @@ def test_post_requires_writer_token_loudly_and_precedes_client(monkeypatch, tmp_
     with pytest.raises(SystemExit) as excinfo:
         main(["post-newsletter", str(newsletter_file), "--date", DATE])
 
-    assert "auth --writer" in str(excinfo.value)
+    message = str(excinfo.value)
+    assert "writes to Discord" in message
+    assert "DISCORD_BOT_TOKEN" in message

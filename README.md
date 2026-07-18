@@ -18,13 +18,12 @@ Run the CLI through `uvx` — no install, no clone:
 uvx --from git+https://github.com/husar-robotics/kronikarz-klaudiusz klaudiusz --help
 ```
 
-Store the read-only bot token once. It comes from the pinned message in the
-private beta channel on Discord; the prompt hides your input, verifies the
-token against Discord, and stores it in your OS keychain — nothing to export
-in your shell:
+Set the read-only bot token in your environment. It comes from the pinned
+message in the private beta channel on Discord — export it in the shell (or
+shell profile) that runs your sessions, and never commit it anywhere:
 
 ```sh
-uvx --from git+https://github.com/husar-robotics/kronikarz-klaudiusz klaudiusz auth
+export DISCORD_READER_TOKEN=...
 uvx --from git+https://github.com/husar-robotics/kronikarz-klaudiusz klaudiusz whoami
 ```
 
@@ -52,17 +51,16 @@ Two bot identities exist ([design](docs/plans/2026-07-13-token-tiers.md)):
   Its token is what beta users get from the pinned beta-channel message. It is
   never committed to any repo.
 
-Every command resolves a token in this order, first hit wins; write commands
-stop after the writer sources:
+Every command resolves a token from the environment, first hit wins; write
+commands stop after the writer source:
 
-1. `DISCORD_BOT_TOKEN` in the environment (writer)
-2. OS keychain `klaudiusz/discord-bot-token` (writer)
-3. `DISCORD_READER_TOKEN` in the environment (reader)
-4. OS keychain `klaudiusz/discord-reader-token` (reader)
+1. `DISCORD_BOT_TOKEN` (writer)
+2. `DISCORD_READER_TOKEN` (reader)
 
-`klaudiusz auth` stores the reader token (`--writer` for the writer token,
-`--clear` to remove both). On a headless box without an OS keychain, export
-`DISCORD_READER_TOKEN` instead — keychain reads degrade silently to env-only.
+In a development checkout the CLI folds the gitignored repo-root `.env` into
+the environment at startup (real environment variables always win), so tokens
+live there once and never need manual sourcing. The routine's cloud
+environment sets them directly.
 
 ## Development
 
@@ -72,7 +70,7 @@ uv run pytest
 uv run ruff check .
 ```
 
-Python 3.11–3.12, `httpx` + `keyring` as the only runtime dependencies.
+Python 3.11–3.12, `httpx` + `python-dotenv` as the only runtime dependencies.
 Design docs live in [`docs/plans/`](docs/plans/) — start with the
 [ingestion architecture](docs/plans/2026-07-10-discord-llm-bridge.md) and the
 [three consumers](docs/plans/2026-07-12-consumers-design.md).
