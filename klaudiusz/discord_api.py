@@ -8,7 +8,7 @@ from collections.abc import Callable, Iterator
 import httpx
 
 API_BASE_URL = "https://discord.com/api/v10"
-USER_AGENT = "DiscordBot (https://github.com/husar-robotics/kronikarz-klaudiusz, 0.1.0)"
+USER_AGENT = "DiscordBot (https://github.com/machinekind/kronikarz-klaudiusz, 0.1.0)"
 
 SEARCH_NOT_INDEXED_CODE = 110000
 

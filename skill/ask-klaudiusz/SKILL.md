@@ -21,10 +21,10 @@ If a command produces this message, stop and tell the user to export `DISCORD_RE
 
 ## Invocation
 
-Run every subcommand through `uvx`. `uvx` resolves and caches the package on first use, so `shrek-dog` takes no Python dependency of its own:
+Run every subcommand through `uvx`. `uvx` resolves and caches the package on first use, so `wojtek` takes no Python dependency of its own:
 
 ```sh
-uvx --from git+https://github.com/husar-robotics/kronikarz-klaudiusz klaudiusz <subcommand> [args]
+uvx --from git+https://github.com/machinekind/kronikarz-klaudiusz klaudiusz <subcommand> [args]
 ```
 
 Four read-only subcommands exist.
@@ -34,7 +34,7 @@ Four read-only subcommands exist.
 Lists the guild's text, announcement, and forum channels, one per line, with name, id, and type.
 
 ```sh
-uvx --from git+https://github.com/husar-robotics/kronikarz-klaudiusz klaudiusz channels
+uvx --from git+https://github.com/machinekind/kronikarz-klaudiusz klaudiusz channels
 ```
 
 ### `search "<query>" [--limit N]`
@@ -42,7 +42,7 @@ uvx --from git+https://github.com/husar-robotics/kronikarz-klaudiusz klaudiusz c
 Searches the whole guild's message history for a query string. `--limit` caps the number of results and defaults to 25. Each result line shows the author, the channel id, a content snippet, and the jump URL.
 
 ```sh
-uvx --from git+https://github.com/husar-robotics/kronikarz-klaudiusz klaudiusz search "actuator torque" --limit 25
+uvx --from git+https://github.com/machinekind/kronikarz-klaudiusz klaudiusz search "actuator torque" --limit 25
 ```
 
 ### `pull --channel <name|id> --since <Nd|YYYY-MM-DD> [--json]`
@@ -50,8 +50,8 @@ uvx --from git+https://github.com/husar-robotics/kronikarz-klaudiusz klaudiusz s
 Pulls one channel's messages, and its threads, since a point in time. `--channel` takes either a channel name without the leading `#` or a channel id. A channel id from a `search` hit or from `channels` always works here. `--since` takes either `Nd` for the last N days or an ISO date `YYYY-MM-DD` for that date's local midnight. `--json` switches the output from a markdown transcript to one JSON record per line. The default output, without `--json`, is the markdown transcript.
 
 ```sh
-uvx --from git+https://github.com/husar-robotics/kronikarz-klaudiusz klaudiusz pull --channel general --since 7d
-uvx --from git+https://github.com/husar-robotics/kronikarz-klaudiusz klaudiusz pull --channel 123456789012345678 --since 2026-07-01 --json
+uvx --from git+https://github.com/machinekind/kronikarz-klaudiusz klaudiusz pull --channel general --since 7d
+uvx --from git+https://github.com/machinekind/kronikarz-klaudiusz klaudiusz pull --channel 123456789012345678 --since 2026-07-01 --json
 ```
 
 ### `thread <id>`
@@ -59,7 +59,7 @@ uvx --from git+https://github.com/husar-robotics/kronikarz-klaudiusz klaudiusz p
 Prints the full transcript of one thread, addressed by its channel id.
 
 ```sh
-uvx --from git+https://github.com/husar-robotics/kronikarz-klaudiusz klaudiusz thread 123456789012345678
+uvx --from git+https://github.com/machinekind/kronikarz-klaudiusz klaudiusz thread 123456789012345678
 ```
 
 ## Strategy

@@ -17,7 +17,7 @@ REQUEST_TIMEOUT = 10.0
 # the default python-httpx User-Agent, which would make the validator drop
 # live links. A descriptive UA with a contact URL follows those hosts' bot
 # policies.
-USER_AGENT = "kronikarz-klaudiusz/0.1.0 (+https://github.com/husar-robotics/kronikarz-klaudiusz)"
+USER_AGENT = "kronikarz-klaudiusz/0.1.0 (+https://github.com/machinekind/kronikarz-klaudiusz)"
 
 
 def _own_client() -> httpx.Client:

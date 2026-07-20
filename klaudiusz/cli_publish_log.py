@@ -32,7 +32,7 @@ from . import config as config_module
 from .config import Config
 
 NEWSLETTER_ARCHIVE_URL = (
-    "https://github.com/husar-robotics/kronikarz-klaudiusz/blob/main/newsletters/{date}.md"
+    "https://github.com/machinekind/kronikarz-klaudiusz/blob/main/newsletters/{date}.md"
 )
 
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")

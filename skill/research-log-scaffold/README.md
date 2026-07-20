@@ -35,7 +35,7 @@ linked from the entry that references it.
 ## 2026-07-12
 - **Decision:** Leg actuators switch to QDD (quasi-direct drive) after the
   torque-density comparison landed.
-  ([discussion](https://discord.com/channels/...), [PR #42](https://github.com/husar-robotics/shrek-dog/pull/42))
+  ([discussion](https://discord.com/channels/...), [PR #42](https://github.com/machinekind/wojtek/pull/42))
 - **Result:** The MJX training run converged after the contact-parameter
   fix; the policy holds 1.8 m/s on flat terrain.
   ([details](details/2026-07-12-mjx-divergence.md))

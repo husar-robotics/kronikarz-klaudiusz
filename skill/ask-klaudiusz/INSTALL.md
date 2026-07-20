@@ -1,6 +1,6 @@
 # Installing /ask-klaudiusz
 
-Copy this directory into the `shrek-dog` repository at `.claude/skills/ask-klaudiusz/`, keeping `SKILL.md` and this file together.
+Copy this directory into the `wojtek` repository at `.claude/skills/ask-klaudiusz/`, keeping `SKILL.md` and this file together.
 
 Export the read-only bot token in the shell (or shell profile) that runs Claude Code sessions. The token comes from the pinned message in the private beta channel on Discord — never commit it or paste it into a chat:
 
