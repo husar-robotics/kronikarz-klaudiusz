@@ -1,30 +1,98 @@
-"""shrek-dog activity for a date window (commits, merged PRs, opened issues), via `gh`."""
+"""shrek-dog activity for a date window (commits, merged PRs, opened issues), via the GitHub REST API.
+
+The daily routine's cloud environment has no `gh` CLI, so this module talks to
+api.github.com directly with httpx. Auth comes from HVSR_TOKEN (the same
+fine-grained PAT `publish-log` uses), read from the environment — the
+repo-root .env is folded in at CLI entry by `load_env`. Local runs without a
+token fall back to `gh auth token` when gh happens to be installed and
+authenticated.
+"""
 
 from __future__ import annotations
 
-import json
 import subprocess
 import sys
+from collections.abc import Iterator
 from datetime import datetime, timezone
 
-# Well above what a single day's PR/issue volume could ever reach; keeps a
-# single `gh` call sufficient without needing to paginate these ourselves.
-_LIST_LIMIT = 500
+import httpx
+
+from . import config as config_module
+
+_API = "https://api.github.com"
+_PER_PAGE = 100
+# Well above what a single day's activity could ever reach; bounds the
+# newest-first listing walks the way the old `gh --limit 500` did.
+_MAX_ITEMS = 500
+_TIMEOUT = 30.0
 
 
-def _run_gh(args: list[str]) -> str:
-    """Run `gh` and return stdout, or exit loudly with a distinct message per failure mode."""
+def _gh_auth_token() -> str | None:
+    """Best-effort token from a locally installed `gh`; None when unavailable."""
     try:
-        result = subprocess.run(["gh", *args], capture_output=True, text=True, check=False)
+        result = subprocess.run(
+            ["gh", "auth", "token"], capture_output=True, text=True, check=False
+        )
     except FileNotFoundError:
-        sys.exit("[FAIL] gh CLI not found; install it and run `gh auth login`")
-    if result.returncode != 0:
-        sys.exit(f"[FAIL] gh {' '.join(args)} exited {result.returncode}: {result.stderr.strip()}")
-    return result.stdout
+        return None
+    token = result.stdout.strip()
+    return token if result.returncode == 0 and token else None
 
 
-def _load(stdout: str) -> list[dict]:
-    return json.loads(stdout) if stdout.strip() else []
+def github_token() -> str:
+    """HVSR_TOKEN from the environment or .env, else `gh auth token`, else a loud exit."""
+    token = config_module.hvsr_token() or _gh_auth_token()
+    if not token:
+        sys.exit(
+            "[FAIL] set HVSR_TOKEN in the environment or repo-root .env "
+            "(fine-grained PAT with read access to shrek-dog)"
+        )
+    return token
+
+
+def _client(token: str) -> httpx.Client:
+    return httpx.Client(
+        base_url=_API,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+        timeout=_TIMEOUT,
+    )
+
+
+def _get(client: httpx.Client, url: str, params: dict | None = None) -> httpx.Response:
+    """GET or exit loudly with a distinct message per failure mode."""
+    try:
+        response = client.get(url, params=params)
+    except httpx.HTTPError as exc:
+        sys.exit(f"[FAIL] GitHub API request failed: {exc}")
+    if response.status_code in (401, 403, 404):
+        sys.exit(
+            f"[FAIL] GitHub API GET {response.request.url.path} returned "
+            f"{response.status_code}; check that HVSR_TOKEN grants read on "
+            "contents, pull requests, and issues (a private repo 404s without access)"
+        )
+    if response.is_error:
+        sys.exit(
+            f"[FAIL] GitHub API GET {response.request.url.path} returned "
+            f"{response.status_code}: {response.text[:200]}"
+        )
+    return response
+
+
+def _paginate(client: httpx.Client, path: str, params: dict) -> Iterator[dict]:
+    """Yield items across Link-header pages; a consumer that breaks early also stops fetching."""
+    url: str | None = path
+    fetched = 0
+    while url is not None and fetched < _MAX_ITEMS:
+        response = _get(client, url, params)
+        params = None  # the rel="next" URL already carries the full query string
+        items = response.json()
+        yield from items
+        fetched += len(items)
+        url = response.links.get("next", {}).get("url")
 
 
 def _iso(dt: datetime) -> str:
@@ -44,105 +112,81 @@ def commits(repo: str, start: datetime, end: datetime) -> list[dict]:
     since/until boundary inclusivity precisely enough to rely on it alone for
     a half-open window.
     """
-    # --method GET is load-bearing: `gh api` switches to POST as soon as any
-    # -f field is present, and GETs with -f fields only stay GETs (with the
-    # fields moved to the query string) when the method is forced.
-    stdout = _run_gh(
-        [
-            "api",
-            "--method",
-            "GET",
-            f"repos/{repo}/commits",
-            "--paginate",
-            "-f",
-            f"since={_iso(start)}",
-            "-f",
-            f"until={_iso(end)}",
-        ]
-    )
+    params = {"since": _iso(start), "until": _iso(end), "per_page": _PER_PAGE}
     out = []
-    for c in _load(stdout):
-        date = datetime.fromisoformat(c["commit"]["committer"]["date"])
-        if not _in_window(date, start, end):
-            continue
-        author = (c.get("author") or {}).get("login") or c["commit"]["author"]["name"]
-        message = c["commit"]["message"]
-        out.append(
-            {
-                "sha": c["sha"][:7],
-                "author": author,
-                "message": message.splitlines()[0] if message else "",
-                "url": c["html_url"],
-            }
-        )
+    with _client(github_token()) as client:
+        for c in _paginate(client, f"/repos/{repo}/commits", params):
+            date = datetime.fromisoformat(c["commit"]["committer"]["date"])
+            if not _in_window(date, start, end):
+                continue
+            author = (c.get("author") or {}).get("login") or c["commit"]["author"]["name"]
+            message = c["commit"]["message"]
+            out.append(
+                {
+                    "sha": c["sha"][:7],
+                    "author": author,
+                    "message": message.splitlines()[0] if message else "",
+                    "url": c["html_url"],
+                }
+            )
     return out
 
 
 def merged_prs(repo: str, start: datetime, end: datetime) -> list[dict]:
-    """Merged PRs of `repo` with mergedAt in [start, end)."""
-    stdout = _run_gh(
-        [
-            "pr",
-            "list",
-            "--repo",
-            repo,
-            "--state",
-            "merged",
-            "--json",
-            "number,title,author,mergedAt,url",
-            "--limit",
-            str(_LIST_LIMIT),
-        ]
-    )
+    """Merged PRs of `repo` with merged_at in [start, end).
+
+    The listing is walked newest-updated first and stops at the first PR
+    updated before `start`: merged_at never exceeds updated_at, so nothing
+    merged in the window can appear past that point.
+    """
+    params = {"state": "closed", "sort": "updated", "direction": "desc", "per_page": _PER_PAGE}
     out = []
-    for pr in _load(stdout):
-        merged_at = datetime.fromisoformat(pr["mergedAt"])
-        if not _in_window(merged_at, start, end):
-            continue
-        out.append(
-            {
-                "number": pr["number"],
-                "title": pr["title"],
-                "author": (pr.get("author") or {}).get("login") or "unknown",
-                "url": pr["url"],
-            }
-        )
+    with _client(github_token()) as client:
+        for pr in _paginate(client, f"/repos/{repo}/pulls", params):
+            if datetime.fromisoformat(pr["updated_at"]) < start:
+                break
+            if not pr.get("merged_at"):
+                continue  # closed without merging
+            if not _in_window(datetime.fromisoformat(pr["merged_at"]), start, end):
+                continue
+            out.append(
+                {
+                    "number": pr["number"],
+                    "title": pr["title"],
+                    "author": (pr.get("user") or {}).get("login") or "unknown",
+                    "url": pr["html_url"],
+                }
+            )
     return out
 
 
 def opened_issues(repo: str, start: datetime, end: datetime) -> list[dict]:
-    """Issues of `repo` opened (createdAt) in [start, end).
+    """Issues of `repo` opened (created_at) in [start, end).
 
-    `--state all` is required: `gh issue list` defaults to open issues only,
-    which would silently drop any issue opened and closed within the window.
+    `state=all` is required so an issue opened and closed within the window is
+    not silently dropped. The issues endpoint interleaves pull requests; those
+    carry a `pull_request` key and are skipped. The walk is newest-created
+    first and stops at the first issue created before `start`.
     """
-    stdout = _run_gh(
-        [
-            "issue",
-            "list",
-            "--repo",
-            repo,
-            "--state",
-            "all",
-            "--json",
-            "number,title,author,createdAt,url",
-            "--limit",
-            str(_LIST_LIMIT),
-        ]
-    )
+    params = {"state": "all", "sort": "created", "direction": "desc", "per_page": _PER_PAGE}
     out = []
-    for issue in _load(stdout):
-        created_at = datetime.fromisoformat(issue["createdAt"])
-        if not _in_window(created_at, start, end):
-            continue
-        out.append(
-            {
-                "number": issue["number"],
-                "title": issue["title"],
-                "author": (issue.get("author") or {}).get("login") or "unknown",
-                "url": issue["url"],
-            }
-        )
+    with _client(github_token()) as client:
+        for issue in _paginate(client, f"/repos/{repo}/issues", params):
+            created_at = datetime.fromisoformat(issue["created_at"])
+            if created_at < start:
+                break
+            if "pull_request" in issue:
+                continue
+            if not _in_window(created_at, start, end):
+                continue
+            out.append(
+                {
+                    "number": issue["number"],
+                    "title": issue["title"],
+                    "author": (issue.get("user") or {}).get("login") or "unknown",
+                    "url": issue["html_url"],
+                }
+            )
     return out
 
 

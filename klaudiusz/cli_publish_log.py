@@ -1,20 +1,23 @@
 """`publish-log` subcommand: validate a log bundle and PR it into shrek-dog.
 
 The pipeline splits into three testable layers: `validate_bundle` (pure),
-`apply_bundle` (filesystem only), and `publish_bundle` (git + gh side effects,
-with a clone-URL override so tests can point it at a local bare repo).
+`apply_bundle` (filesystem only), and `publish_bundle` (git + GitHub API side
+effects, with a clone-URL override so tests can point it at a local bare repo).
 
-Secret handling: the SHREK_DOG_TOKEN value must never appear in argv, URLs,
-logs, or files. Git auth goes through an inline credential helper whose shell
-reads the env var inside git's own subprocess; `gh` gets it via GH_TOKEN in
-the child environment.
+The PR is opened through the REST API with httpx, not `gh` — the daily
+routine's cloud environment has no gh CLI.
+
+Secret handling: the HVSR_TOKEN value must never appear in argv, URLs, logs,
+or files. Git auth goes through an inline credential helper whose shell reads
+the env var inside git's own subprocess (`load_env` folds the repo-root .env
+into the environment at CLI entry, so a .env-sourced token is visible there
+too); the API call carries it only in an Authorization header.
 """
 
 from __future__ import annotations
 
 import argparse
 import datetime
-import os
 import re
 import shutil
 import subprocess
@@ -22,6 +25,8 @@ import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+
+import httpx
 
 from . import config as config_module
 from .config import Config
@@ -42,7 +47,7 @@ _CREDENTIAL_ARGS = (
     "-c",
     "credential.helper=",
     "-c",
-    'credential.helper=!f() { echo username=x-access-token; echo "password=$SHREK_DOG_TOKEN"; }; f',
+    'credential.helper=!f() { echo username=x-access-token; echo "password=$HVSR_TOKEN"; }; f',
 )
 
 
@@ -148,10 +153,10 @@ def apply_bundle(bundle: Bundle, checkout_dir: Path, log_dir: str, date: str) ->
 
 
 def shrek_dog_token() -> str:
-    """Read SHREK_DOG_TOKEN from the environment; loud error naming the variable when absent."""
-    token = os.environ.get("SHREK_DOG_TOKEN")
+    """HVSR_TOKEN via config (environment or .env); loud error naming the variable when absent."""
+    token = config_module.hvsr_token()
     if not token:
-        sys.exit("[FAIL] set SHREK_DOG_TOKEN in the environment")
+        sys.exit("[FAIL] set HVSR_TOKEN in the environment or repo-root .env")
     return token
 
 
@@ -168,40 +173,30 @@ def _run_git(args: list[str], cwd: Path | None = None) -> str:
     return result.stdout
 
 
-def _create_pr(repo: str, branch: str, date: str, token: str) -> str:
-    """Open the PR via gh (token passed only through GH_TOKEN in the child env); return its URL."""
+def _create_pr(repo: str, branch: str, date: str, token: str, base: str) -> str:
+    """Open the PR via the REST API (token only in the Authorization header); return its URL."""
     body = (
         f"Daily research-log entry for {date}, generated from the day's Discord "
         "and repo activity.\n\n"
         f"Newsletter archive for the day: {NEWSLETTER_ARCHIVE_URL.format(date=date)}\n\n"
         "🤖 Generated with [Claude Code](https://claude.com/claude-code)\n"
     )
-    cmd = [
-        "gh",
-        "pr",
-        "create",
-        "--repo",
-        repo,
-        "--head",
-        branch,
-        "--title",
-        f"research log: {date}",
-        "--body",
-        body,
-    ]
     try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            check=False,
-            env={**os.environ, "GH_TOKEN": token},
+        response = httpx.post(
+            f"https://api.github.com/repos/{repo}/pulls",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+            json={"title": f"research log: {date}", "head": branch, "base": base, "body": body},
+            timeout=30.0,
         )
-    except FileNotFoundError:
-        sys.exit("[FAIL] gh CLI not found; install it")
-    if result.returncode != 0:
-        sys.exit(f"[FAIL] gh pr create exited {result.returncode}: {result.stderr.strip()}")
-    return result.stdout.strip()
+    except httpx.HTTPError as exc:
+        sys.exit(f"[FAIL] PR creation request failed: {exc}")
+    if response.status_code != 201:
+        sys.exit(f"[FAIL] PR creation returned {response.status_code}: {response.text[:300]}")
+    return response.json()["html_url"]
 
 
 def publish_bundle(bundle: Bundle, cfg: Config, *, clone_url: str | None = None) -> str:
@@ -230,12 +225,19 @@ def publish_bundle(bundle: Bundle, cfg: Config, *, clone_url: str | None = None)
                 "refusing to publish the same date twice"
             )
 
+        # The PR's base is the remote's default branch, read from the clone so
+        # no extra API round-trip is needed ("origin/main" -> "main").
+        origin_head = _run_git(
+            ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"], cwd=checkout
+        ).strip()
+        base = origin_head.partition("/")[2]
+
         _run_git(["checkout", "-b", branch], cwd=checkout)
         touched = apply_bundle(bundle, checkout, cfg.shrek_dog.log_dir, bundle.date)
         _run_git(["add", "--", *touched], cwd=checkout)
         _run_git(["commit", "-m", f"research log: {bundle.date}"], cwd=checkout)
         _run_git([*_CREDENTIAL_ARGS, "push", "origin", branch], cwd=checkout)
-        return _create_pr(repo, branch, bundle.date, token)
+        return _create_pr(repo, branch, bundle.date, token, base)
 
 
 # -- CLI ------------------------------------------------------------------------

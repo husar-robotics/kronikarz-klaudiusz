@@ -5,7 +5,9 @@ activity from the previous day and produces the `#daily-tldr` newsletter and the
 entry.
 
 The session starts in a fresh clone of this repository, on the current branch. `DISCORD_BOT_TOKEN`
-is already set in the environment. The `klaudiusz` package is already installed. Do not install,
+and `HVSR_TOKEN` are already set in the environment. The `klaudiusz` package is already
+installed. There is no `gh` CLI and none is needed: every GitHub access goes through `klaudiusz`
+subcommands or the git clone command spelled out in `prompts/research-log.md`. Do not install,
 upgrade, or reconfigure anything.
 
 Follow the steps below in order. Do not skip or reorder them.
@@ -91,7 +93,8 @@ Commit only `newsletters/<date>.md`. Do not commit the draft file or anything el
 After the newsletter is committed, continue with the research log for the same date.
 
 1. Fetch the current month's log file and the previous 14 days of entries
-   from `docs/research-log/` in `shrek-dog`.
+   from `docs/research-log/` in `shrek-dog`, using the clone command given
+   in `prompts/research-log.md`.
 2. Follow `prompts/research-log.md` to decide what qualifies and write the
    day's entry.
 3. Run `uv run klaudiusz publish-log` as described in `prompts/research-log.md`.

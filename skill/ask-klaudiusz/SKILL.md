@@ -11,13 +11,13 @@ This skill gives an agent read-only access to the project's Discord server. It w
 
 ## Prerequisite: a Discord token
 
-The `klaudiusz` CLI needs a bot token before any command that talks to Discord runs. It looks in the environment (`DISCORD_BOT_TOKEN`, then `DISCORD_READER_TOKEN`) and in the OS keychain, where `klaudiusz auth` stores the read-only reader token once per machine (see INSTALL.md). `channels`, `search`, `pull`, and `thread` all fail immediately when no token is found, with this exact message on stderr and exit code 1:
+The `klaudiusz` CLI needs a bot token before any command that talks to Discord runs. It looks in the environment only: `DISCORD_BOT_TOKEN`, then `DISCORD_READER_TOKEN` (see INSTALL.md for the one-time export). `channels`, `search`, `pull`, and `thread` all fail immediately when no token is found, with this exact message on stderr and exit code 1:
 
 ```
-[FAIL] no Discord token found; run 'klaudiusz auth' to store the reader token, or set DISCORD_BOT_TOKEN / DISCORD_READER_TOKEN in the environment
+[FAIL] no Discord token found; set DISCORD_BOT_TOKEN or DISCORD_READER_TOKEN in the environment or the repo-root .env
 ```
 
-If a command produces this message, stop and tell the user to run `klaudiusz auth` in a terminal (or export `DISCORD_READER_TOKEN` on a headless machine), then retry. Do not ask the user to paste the token value into the chat. Never print or log the token.
+If a command produces this message, stop and tell the user to export `DISCORD_READER_TOKEN` in the shell that runs their sessions, then retry. Do not ask the user to paste the token value into the chat. Never print or log the token.
 
 ## Invocation
 

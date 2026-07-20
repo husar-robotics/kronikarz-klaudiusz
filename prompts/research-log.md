@@ -17,6 +17,19 @@ in the 14 days before the one being written. If the month file does not
 exist yet, or covers fewer than 14 days of history, treat the missing days
 as no prior context. That is not an error.
 
+`shrek-dog` is private and the environment has no `gh` CLI. Fetch it with a
+shallow clone whose credential helper reads `HVSR_TOKEN` inside git's
+own process — never put the token on a command line or in a URL:
+
+```sh
+git -c credential.helper= \
+    -c 'credential.helper=!f() { echo username=x-access-token; echo "password=$HVSR_TOKEN"; }; f' \
+    clone --depth 1 https://github.com/husar-robotics/shrek-dog.git /tmp/shrek-dog
+```
+
+Then read the log files from `/tmp/shrek-dog/docs/research-log/`. Clone
+outside this repository's working tree, exactly as above.
+
 ## Report deltas, not state
 
 An ongoing topic earns a new bullet only when something changed today: a

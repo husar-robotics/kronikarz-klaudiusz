@@ -1,14 +1,16 @@
 from __future__ import annotations
 
-import json
 import subprocess
 from datetime import datetime
 
+import httpx
 import pytest
+import respx
 
 from klaudiusz import repo_signal as rs
 
 REPO = "husar-robotics/shrek-dog"
+API = "https://api.github.com"
 
 WINDOW_START = datetime.fromisoformat("2026-07-11T00:00:00+00:00")
 WINDOW_END = datetime.fromisoformat("2026-07-12T00:00:00+00:00")
@@ -56,99 +58,120 @@ COMMITS_FIXTURE = [
     },
 ]
 
+# The pulls listing arrives newest-updated first; the walk stops at the first
+# PR updated before the window start.
 MERGED_PRS_FIXTURE = [
     {
-        "number": 41,
-        "title": "Draft QDD comparison",
-        "author": {"id": "u1", "is_bot": False, "login": "marcinw"},
-        "mergedAt": "2026-07-10T18:00:00Z",  # before window -> excluded
-        "url": f"https://github.com/{REPO}/pull/41",
+        "number": 44,
+        "title": "Unrelated cleanup",
+        "user": {"login": "grace"},
+        "updated_at": "2026-07-12T00:00:00Z",
+        "merged_at": "2026-07-12T00:00:00Z",  # exactly at end -> excluded
+        "html_url": f"https://github.com/{REPO}/pull/44",
     },
     {
-        "number": 42,
-        "title": "Switch leg actuators to QDD",
-        "author": {"id": "u1", "is_bot": False, "login": "marcinw"},
-        "mergedAt": "2026-07-11T00:00:00Z",  # exactly at start -> included
-        "url": f"https://github.com/{REPO}/pull/42",
+        "number": 45,
+        "title": "Abandoned spike",
+        "user": {"login": "grace"},
+        "updated_at": "2026-07-11T16:00:00Z",
+        "merged_at": None,  # closed without merging -> excluded
+        "html_url": f"https://github.com/{REPO}/pull/45",
     },
     {
         "number": 43,
         "title": "Bump MJX pin",
-        "author": None,  # deleted account
-        "mergedAt": "2026-07-11T15:30:00Z",
-        "url": f"https://github.com/{REPO}/pull/43",
+        "user": None,  # deleted account
+        "updated_at": "2026-07-11T15:30:00Z",
+        "merged_at": "2026-07-11T15:30:00Z",
+        "html_url": f"https://github.com/{REPO}/pull/43",
     },
     {
-        "number": 44,
-        "title": "Unrelated cleanup",
-        "author": {"id": "u2", "is_bot": False, "login": "grace"},
-        "mergedAt": "2026-07-12T00:00:00Z",  # exactly at end -> excluded
-        "url": f"https://github.com/{REPO}/pull/44",
+        "number": 42,
+        "title": "Switch leg actuators to QDD",
+        "user": {"login": "marcinw"},
+        "updated_at": "2026-07-11T00:00:00Z",
+        "merged_at": "2026-07-11T00:00:00Z",  # exactly at start -> included
+        "html_url": f"https://github.com/{REPO}/pull/42",
+    },
+    {
+        "number": 41,
+        "title": "Draft QDD comparison",
+        "user": {"login": "marcinw"},
+        "updated_at": "2026-07-10T18:00:00Z",  # before window -> stops the walk
+        "merged_at": "2026-07-10T18:00:00Z",
+        "html_url": f"https://github.com/{REPO}/pull/41",
     },
 ]
 
+# The issues listing arrives newest-created first and interleaves pull
+# requests, which carry a `pull_request` key.
 OPENED_ISSUES_FIXTURE = [
     {
-        "number": 17,
-        "title": "sim2real friction gap",
-        "author": {"id": "u2", "is_bot": False, "login": "grace"},
-        "createdAt": "2026-07-10T09:00:00Z",  # before window -> excluded
-        "url": f"https://github.com/{REPO}/issues/17",
-    },
-    {
-        "number": 18,
-        "title": "torque sensor noise on leg 3",
-        "author": {"id": "u1", "is_bot": False, "login": "marcinw"},
-        "createdAt": "2026-07-11T00:00:00Z",  # exactly at start -> included
-        "url": f"https://github.com/{REPO}/issues/18",
+        "number": 20,
+        "title": "next week planning",
+        "user": {"login": "marcinw"},
+        "created_at": "2026-07-12T00:00:00Z",  # exactly at end -> excluded
+        "html_url": f"https://github.com/{REPO}/issues/20",
     },
     {
         "number": 19,
         "title": "flaky MJX contact test",
-        "author": {"id": "u3", "is_bot": False, "login": "kate"},
-        "createdAt": "2026-07-11T23:00:00Z",
-        "url": f"https://github.com/{REPO}/issues/19",
+        "user": {"login": "kate"},
+        "created_at": "2026-07-11T23:00:00Z",
+        "html_url": f"https://github.com/{REPO}/issues/19",
     },
     {
-        "number": 20,
-        "title": "next week planning",
-        "author": {"id": "u1", "is_bot": False, "login": "marcinw"},
-        "createdAt": "2026-07-12T00:00:00Z",  # exactly at end -> excluded
-        "url": f"https://github.com/{REPO}/issues/20",
+        "number": 45,
+        "title": "Abandoned spike",
+        "user": {"login": "grace"},
+        "created_at": "2026-07-11T16:00:00Z",
+        "html_url": f"https://github.com/{REPO}/pull/45",
+        "pull_request": {"url": f"{API}/repos/{REPO}/pulls/45"},  # a PR, not an issue -> skipped
+    },
+    {
+        "number": 18,
+        "title": "torque sensor noise on leg 3",
+        "user": {"login": "marcinw"},
+        "created_at": "2026-07-11T00:00:00Z",  # exactly at start -> included
+        "html_url": f"https://github.com/{REPO}/issues/18",
+    },
+    {
+        "number": 17,
+        "title": "sim2real friction gap",
+        "user": {"login": "grace"},
+        "created_at": "2026-07-10T09:00:00Z",  # before window -> stops the walk
+        "html_url": f"https://github.com/{REPO}/issues/17",
     },
 ]
 
-ALL_FIXTURES = {
-    "commits": COMMITS_FIXTURE,
-    "merged_prs": MERGED_PRS_FIXTURE,
-    "opened_issues": OPENED_ISSUES_FIXTURE,
-}
 
-EMPTY_FIXTURES = {"commits": [], "merged_prs": [], "opened_issues": []}
+@pytest.fixture(autouse=True)
+def token_env(monkeypatch):
+    monkeypatch.setenv("HVSR_TOKEN", "unit-test-token")
 
 
-def _completed(stdout: str, returncode: int = 0, stderr: str = "") -> subprocess.CompletedProcess:
-    return subprocess.CompletedProcess(args=["gh"], returncode=returncode, stdout=stdout, stderr=stderr)
+def _mock_github(commits=(), pulls=(), issues=()):
+    """Route the three listing endpoints to canned single-page responses."""
+    routes = {
+        "commits": respx.get(f"{API}/repos/{REPO}/commits").mock(
+            return_value=httpx.Response(200, json=list(commits))
+        ),
+        "pulls": respx.get(f"{API}/repos/{REPO}/pulls").mock(
+            return_value=httpx.Response(200, json=list(pulls))
+        ),
+        "issues": respx.get(f"{API}/repos/{REPO}/issues").mock(
+            return_value=httpx.Response(200, json=list(issues))
+        ),
+    }
+    return routes
 
 
-def _fake_run(fixtures: dict[str, list[dict]]):
-    """Route a mocked subprocess.run by the gh subcommand (`args[1]`)."""
-
-    def run(cmd, **kwargs):
-        assert cmd[0] == "gh"
-        if cmd[1] == "api":
-            return _completed(json.dumps(fixtures["commits"]))
-        if cmd[1] == "pr":
-            return _completed(json.dumps(fixtures["merged_prs"]))
-        if cmd[1] == "issue":
-            return _completed(json.dumps(fixtures["opened_issues"]))
-        raise AssertionError(f"unexpected gh subcommand: {cmd}")
-
-    return run
+# -- commits ---------------------------------------------------------------------
 
 
-def test_commits_filters_window_and_shapes_records(monkeypatch):
-    monkeypatch.setattr(rs.subprocess, "run", _fake_run(ALL_FIXTURES))
+@respx.mock
+def test_commits_filters_window_and_shapes_records():
+    _mock_github(commits=COMMITS_FIXTURE)
 
     result = rs.commits(REPO, WINDOW_START, WINDOW_END)
 
@@ -159,58 +182,91 @@ def test_commits_filters_window_and_shapes_records(monkeypatch):
     assert result[1]["author"] == "Grace Hopper"  # no linked GitHub account -> commit author name
 
 
-def test_commits_passes_since_until_query_params(monkeypatch):
-    seen = {}
-
-    def run(cmd, **kwargs):
-        seen["cmd"] = cmd
-        return _completed(json.dumps([]))
-
-    monkeypatch.setattr(rs.subprocess, "run", run)
+@respx.mock
+def test_commits_sends_window_params_and_bearer_token():
+    routes = _mock_github()
 
     rs.commits(REPO, WINDOW_START, WINDOW_END)
 
-    cmd = seen["cmd"]
-    assert cmd[:6] == ["gh", "api", "--method", "GET", f"repos/{REPO}/commits", "--paginate"]
-    assert "since=2026-07-11T00:00:00Z" in cmd
-    assert "until=2026-07-12T00:00:00Z" in cmd
+    request = routes["commits"].calls.last.request
+    assert request.headers["Authorization"] == "Bearer unit-test-token"
+    assert request.url.params["since"] == "2026-07-11T00:00:00Z"
+    assert request.url.params["until"] == "2026-07-12T00:00:00Z"
 
 
-def test_merged_prs_filters_window_boundaries(monkeypatch):
-    monkeypatch.setattr(rs.subprocess, "run", _fake_run(ALL_FIXTURES))
+@respx.mock
+def test_commits_follow_link_header_pagination():
+    page2_url = f"{API}/repos/{REPO}/commits?page=2"
+    respx.get(f"{API}/repos/{REPO}/commits").mock(
+        side_effect=[
+            httpx.Response(
+                200,
+                json=[COMMITS_FIXTURE[1]],
+                headers={"Link": f'<{page2_url}>; rel="next"'},
+            ),
+            httpx.Response(200, json=[COMMITS_FIXTURE[2]]),
+        ]
+    )
+
+    result = rs.commits(REPO, WINDOW_START, WINDOW_END)
+
+    assert [c["sha"] for c in result] == ["bbbbbbb", "ccccccc"]
+
+
+# -- merged PRs ------------------------------------------------------------------
+
+
+@respx.mock
+def test_merged_prs_filters_window_boundaries_and_unmerged():
+    _mock_github(pulls=MERGED_PRS_FIXTURE)
 
     result = rs.merged_prs(REPO, WINDOW_START, WINDOW_END)
 
-    assert [pr["number"] for pr in result] == [42, 43]
-    assert result[0]["author"] == "marcinw"
-    assert result[1]["author"] == "unknown"  # deleted account -> author is null
+    assert [pr["number"] for pr in result] == [43, 42]
+    assert result[0]["author"] == "unknown"  # deleted account -> user is null
+    assert result[1]["author"] == "marcinw"
 
 
-def test_opened_issues_filters_window_boundaries(monkeypatch):
-    monkeypatch.setattr(rs.subprocess, "run", _fake_run(ALL_FIXTURES))
+@respx.mock
+def test_merged_prs_stop_paginating_past_the_window():
+    page2 = respx.get(f"{API}/repos/{REPO}/pulls", params={"page": "2"}).mock(
+        return_value=httpx.Response(200, json=[])
+    )
+    respx.get(f"{API}/repos/{REPO}/pulls").mock(
+        return_value=httpx.Response(
+            200,
+            json=MERGED_PRS_FIXTURE,  # ends with a PR updated before the window
+            headers={"Link": f'<{API}/repos/{REPO}/pulls?page=2>; rel="next"'},
+        )
+    )
+
+    result = rs.merged_prs(REPO, WINDOW_START, WINDOW_END)
+
+    assert [pr["number"] for pr in result] == [43, 42]
+    assert not page2.called
+
+
+# -- opened issues ---------------------------------------------------------------
+
+
+@respx.mock
+def test_opened_issues_filters_window_and_skips_pull_requests():
+    routes = _mock_github(issues=OPENED_ISSUES_FIXTURE)
 
     result = rs.opened_issues(REPO, WINDOW_START, WINDOW_END)
 
-    assert [issue["number"] for issue in result] == [18, 19]
+    assert [issue["number"] for issue in result] == [19, 18]
+    assert routes["issues"].calls.last.request.url.params["state"] == "all"
 
 
-def test_opened_issues_requests_all_states(monkeypatch):
-    seen = {}
-
-    def run(cmd, **kwargs):
-        seen["cmd"] = cmd
-        return _completed(json.dumps([]))
-
-    monkeypatch.setattr(rs.subprocess, "run", run)
-
-    rs.opened_issues(REPO, WINDOW_START, WINDOW_END)
-
-    cmd = seen["cmd"]
-    assert cmd[cmd.index("--state") + 1] == "all"
+# -- bundling --------------------------------------------------------------------
 
 
-def test_repo_signal_bundles_all_three(monkeypatch):
-    monkeypatch.setattr(rs.subprocess, "run", _fake_run(ALL_FIXTURES))
+@respx.mock
+def test_repo_signal_bundles_all_three():
+    _mock_github(
+        commits=COMMITS_FIXTURE, pulls=MERGED_PRS_FIXTURE, issues=OPENED_ISSUES_FIXTURE
+    )
 
     signal = rs.repo_signal(REPO, WINDOW_START, WINDOW_END)
 
@@ -218,10 +274,12 @@ def test_repo_signal_bundles_all_three(monkeypatch):
     assert len(signal["commits"]) == 2
     assert len(signal["merged_prs"]) == 2
     assert len(signal["opened_issues"]) == 2
+    assert rs.event_count(signal) == 6
 
 
-def test_repo_signal_empty_window(monkeypatch):
-    monkeypatch.setattr(rs.subprocess, "run", _fake_run(EMPTY_FIXTURES))
+@respx.mock
+def test_repo_signal_empty_window():
+    _mock_github()
 
     signal = rs.repo_signal(REPO, WINDOW_START, WINDOW_END)
 
@@ -229,42 +287,95 @@ def test_repo_signal_empty_window(monkeypatch):
     assert rs.event_count(signal) == 0
 
 
-def test_event_count(monkeypatch):
-    monkeypatch.setattr(rs.subprocess, "run", _fake_run(ALL_FIXTURES))
-
-    signal = rs.repo_signal(REPO, WINDOW_START, WINDOW_END)
-
-    assert rs.event_count(signal) == 6
+# -- failure modes ---------------------------------------------------------------
 
 
-def test_gh_missing_exits_loudly(monkeypatch):
-    def run(cmd, **kwargs):
-        raise FileNotFoundError("gh")
-
-    monkeypatch.setattr(rs.subprocess, "run", run)
+@respx.mock
+def test_forbidden_names_the_token_variable():
+    respx.get(f"{API}/repos/{REPO}/commits").mock(
+        return_value=httpx.Response(403, json={"message": "Resource not accessible"})
+    )
 
     with pytest.raises(SystemExit) as excinfo:
         rs.commits(REPO, WINDOW_START, WINDOW_END)
 
-    message = str(excinfo.value).lower()
-    assert "gh" in message
-    assert "not found" in message
+    message = str(excinfo.value)
+    assert "403" in message
+    assert "HVSR_TOKEN" in message
 
 
-def test_gh_failure_exits_loudly_with_stderr(monkeypatch):
-    def run(cmd, **kwargs):
-        return _completed("", returncode=1, stderr="gh: authentication required. Run `gh auth login`.")
-
-    monkeypatch.setattr(rs.subprocess, "run", run)
+@respx.mock
+def test_server_error_exits_loudly_with_body():
+    respx.get(f"{API}/repos/{REPO}/pulls").mock(
+        return_value=httpx.Response(500, text="upstream exploded")
+    )
 
     with pytest.raises(SystemExit) as excinfo:
         rs.merged_prs(REPO, WINDOW_START, WINDOW_END)
 
-    assert "authentication required" in str(excinfo.value)
+    message = str(excinfo.value)
+    assert "500" in message
+    assert "upstream exploded" in message
 
 
-def test_repo_signal_markdown_populated_snapshot(monkeypatch):
-    monkeypatch.setattr(rs.subprocess, "run", _fake_run(ALL_FIXTURES))
+@respx.mock
+def test_network_error_exits_loudly():
+    respx.get(f"{API}/repos/{REPO}/issues").mock(
+        side_effect=httpx.ConnectError("connection refused")
+    )
+
+    with pytest.raises(SystemExit) as excinfo:
+        rs.opened_issues(REPO, WINDOW_START, WINDOW_END)
+
+    assert "connection refused" in str(excinfo.value)
+
+
+# -- token resolution ------------------------------------------------------------
+
+
+def test_env_token_wins_without_touching_gh(monkeypatch):
+    monkeypatch.setattr(
+        rs.subprocess,
+        "run",
+        lambda *a, **k: pytest.fail("gh must not run when the env token is set"),
+    )
+
+    assert rs.github_token() == "unit-test-token"
+
+
+def test_token_falls_back_to_gh_auth_token(monkeypatch):
+    monkeypatch.delenv("HVSR_TOKEN")
+    monkeypatch.setattr(
+        rs.subprocess,
+        "run",
+        lambda cmd, **k: subprocess.CompletedProcess(cmd, 0, stdout="gh-local-token\n", stderr=""),
+    )
+
+    assert rs.github_token() == "gh-local-token"
+
+
+def test_missing_token_and_missing_gh_fail_loudly(monkeypatch):
+    monkeypatch.delenv("HVSR_TOKEN")
+
+    def no_gh(*args, **kwargs):
+        raise FileNotFoundError("gh")
+
+    monkeypatch.setattr(rs.subprocess, "run", no_gh)
+
+    with pytest.raises(SystemExit) as excinfo:
+        rs.github_token()
+
+    assert "HVSR_TOKEN" in str(excinfo.value)
+
+
+# -- markdown --------------------------------------------------------------------
+
+
+@respx.mock
+def test_repo_signal_markdown_populated_snapshot():
+    _mock_github(
+        commits=COMMITS_FIXTURE, pulls=MERGED_PRS_FIXTURE, issues=OPENED_ISSUES_FIXTURE
+    )
     signal = rs.repo_signal(REPO, WINDOW_START, WINDOW_END)
 
     markdown = rs.repo_signal_markdown(signal)
@@ -277,12 +388,12 @@ def test_repo_signal_markdown_populated_snapshot(monkeypatch):
         " Tune MJX contact params — Grace Hopper\n"
         "\n"
         "## Merged PRs\n\n"
-        f"- [#42](https://github.com/{REPO}/pull/42) Switch leg actuators to QDD — marcinw\n"
         f"- [#43](https://github.com/{REPO}/pull/43) Bump MJX pin — unknown\n"
+        f"- [#42](https://github.com/{REPO}/pull/42) Switch leg actuators to QDD — marcinw\n"
         "\n"
         "## Opened issues\n\n"
-        f"- [#18](https://github.com/{REPO}/issues/18) torque sensor noise on leg 3 — marcinw\n"
-        f"- [#19](https://github.com/{REPO}/issues/19) flaky MJX contact test — kate"
+        f"- [#19](https://github.com/{REPO}/issues/19) flaky MJX contact test — kate\n"
+        f"- [#18](https://github.com/{REPO}/issues/18) torque sensor noise on leg 3 — marcinw"
     )
     assert markdown == expected
 
