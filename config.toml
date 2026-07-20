@@ -4,7 +4,7 @@ newsletter_channel_id = "1525240079403188285"  # daily-tldr (gate G3 flipped 202
 ignore_channels = ["bot-news"]  # channels excluded from ingestion
 
 [shrek_dog]
-repo = "husar-robotics/shrek-dog"
+repo = "machinekind/wojtek"  # renamed/transferred from husar-robotics/shrek-dog (2026-07-18)
 log_dir = "docs/research-log"
 
 [schedule]

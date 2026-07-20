@@ -1,6 +1,6 @@
 # Research log entry generation
 
-This is the guidance for writing one day's entry in `shrek-dog`'s research log.
+This is the guidance for writing one day's entry in `wojtek`'s research log.
 It runs after the newsletter step, on the same day's context bundle.
 
 ## Inputs
@@ -11,23 +11,23 @@ The day's context bundle is already on disk from the newsletter step:
 `transcript.md`, `repo-signal.md`, `links.md`, and `meta.json`. Read all four.
 
 Before writing, fetch the project's memory of its own log. Read
-`docs/research-log/<current-month>.md` from `shrek-dog` (path
+`docs/research-log/<current-month>.md` from `wojtek` (path
 `docs/research-log/`, file named `YYYY-MM.md`), and read the entries dated
 in the 14 days before the one being written. If the month file does not
 exist yet, or covers fewer than 14 days of history, treat the missing days
 as no prior context. That is not an error.
 
-`shrek-dog` is private and the environment has no `gh` CLI. Fetch it with a
+`wojtek` is private and the environment has no `gh` CLI. Fetch it with a
 shallow clone whose credential helper reads `HVSR_TOKEN` inside git's
 own process — never put the token on a command line or in a URL:
 
 ```sh
 git -c credential.helper= \
     -c 'credential.helper=!f() { echo username=x-access-token; echo "password=$HVSR_TOKEN"; }; f' \
-    clone --depth 1 https://github.com/husar-robotics/shrek-dog.git /tmp/shrek-dog
+    clone --depth 1 https://github.com/machinekind/wojtek.git /tmp/wojtek
 ```
 
-Then read the log files from `/tmp/shrek-dog/docs/research-log/`. Clone
+Then read the log files from `/tmp/wojtek/docs/research-log/`. Clone
 outside this repository's working tree, exactly as above.
 
 ## Report deltas, not state
@@ -48,7 +48,7 @@ closed it.
 ```markdown
 - **Decision:** Leg actuators switch to QDD (quasi-direct drive) after the
   torque-density comparison landed.
-  ([discussion](https://discord.com/channels/...), [PR #42](https://github.com/husar-robotics/shrek-dog/pull/42))
+  ([discussion](https://discord.com/channels/...), [PR #42](https://github.com/machinekind/wojtek/pull/42))
 ```
 
 **Result** — an outcome from a run, an experiment, a build, or a test.

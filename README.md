@@ -1,6 +1,6 @@
 # Kronikarz Klaudiusz
 
-Discord ↔ LLM bridge for the husar-robotics community. Klaudiusz reads the
+Discord ↔ LLM bridge for the machinekind community. Klaudiusz reads the
 project's Discord server over the official bot REST API and writes back — the
 backend for three consumers: an `/ask-klaudiusz` skill for Claude Code
 sessions, an automatic daily **newsletter**, and a **research log** built from
@@ -15,7 +15,7 @@ public, running it is useful to community members only.
 Run the CLI through `uvx` — no install, no clone:
 
 ```sh
-uvx --from git+https://github.com/husar-robotics/kronikarz-klaudiusz klaudiusz --help
+uvx --from git+https://github.com/machinekind/kronikarz-klaudiusz klaudiusz --help
 ```
 
 Set the read-only bot token in your environment. It comes from the pinned
@@ -24,7 +24,7 @@ shell profile) that runs your sessions, and never commit it anywhere:
 
 ```sh
 export DISCORD_READER_TOKEN=...
-uvx --from git+https://github.com/husar-robotics/kronikarz-klaudiusz klaudiusz whoami
+uvx --from git+https://github.com/machinekind/kronikarz-klaudiusz klaudiusz whoami
 ```
 
 Read commands:
@@ -39,7 +39,7 @@ Read commands:
 | `whoami` | which bot token the commands would use, and whose it is |
 
 `post-newsletter` and `publish-log` are operator commands: they run inside the
-scheduled routine and need the writer token / a shrek-dog PAT.
+scheduled routine and need the writer token / a machinekind/wojtek PAT.
 
 ## Tokens
 

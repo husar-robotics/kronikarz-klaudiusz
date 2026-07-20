@@ -40,7 +40,7 @@ Read all four files the command wrote to `context-<date>/`:
 
 - `transcript.md` holds the day's Discord messages, grouped by channel and thread. Each line
 carries an author, a time, and a jump URL.
-- `repo-signal.md` holds commits, merged PRs, and opened issues in `shrek-dog` for the day.
+- `repo-signal.md` holds commits, merged PRs, and opened issues in `wojtek` for the day.
 - `links.md` lists every URL shared that day. arXiv and DOI titles and authors are already
 resolved where they apply.
 - `meta.json` holds the message count, channel count, repo event count, and the quiet flag.
@@ -93,7 +93,7 @@ Commit only `newsletters/<date>.md`. Do not commit the draft file or anything el
 After the newsletter is committed, continue with the research log for the same date.
 
 1. Fetch the current month's log file and the previous 14 days of entries
-   from `docs/research-log/` in `shrek-dog`, using the clone command given
+   from `docs/research-log/` in `wojtek`, using the clone command given
    in `prompts/research-log.md`.
 2. Follow `prompts/research-log.md` to decide what qualifies and write the
    day's entry.

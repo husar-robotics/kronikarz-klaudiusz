@@ -28,7 +28,7 @@ import sys
 import httpx
 
 API = "https://discord.com/api/v10"
-UA = "DiscordBot (https://github.com/husar-robotics/kronikarz-klaudiusz, 0.1.0)"
+UA = "DiscordBot (https://github.com/machinekind/kronikarz-klaudiusz, 0.1.0)"
 
 
 def client(token: str) -> httpx.Client:
